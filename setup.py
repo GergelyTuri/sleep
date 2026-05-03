@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="sleep",
     version="0.11",
-    packages=find_packages(include=["sleep", "sleep.*"]),
+    packages=find_packages(include=["src", "src.*"]),
     url="https://github.com/GergelyTuri/sleep",
     license="MIT",
     author="Gergely Turi",

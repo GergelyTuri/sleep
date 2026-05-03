@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 
-from src.classes import filters
-from src.classes.suite2p_class import Suite2p
+from . import filters
+from .suite2p_class import Suite2p
 
 
 class DFOFStrategy(ABC):

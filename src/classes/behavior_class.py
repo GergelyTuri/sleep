@@ -7,7 +7,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from src.classes import imaging_class as ic
+from . import imaging_class as ic
 
 
 @dataclass
