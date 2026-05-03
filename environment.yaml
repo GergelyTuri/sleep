@@ -1,8 +1,6 @@
 name: sleep
 channels:
-  - anaconda
   - conda-forge
-  - defaults
 dependencies:
   - python=3.9
   - pip
@@ -11,14 +9,14 @@ dependencies:
   - pandas
   - matplotlib
   - seaborn
-  - pandas
-  - jupyter ipywidgets
+  - jupyter
+  - ipywidgets
   - tifffile
   - nbformat
   - plotly
   - pip:
-    - pymysql
-    - ydata-profilingy
-    - h5py
+      - pymysql
+      - ydata-profiling
+      - h5py
 
 
