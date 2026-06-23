@@ -1,6 +1,6 @@
 """metadata info for sparse analysis"""
 
-from src.classes import mouse_class as mouse
+from src.io import mouse_io as mouse
 
 # clean data sets: mouse id -> list of sessions
 CLEAN_DATA = {"dock13a1": ["TSeries-08062024-1156-001.sima", "TSeries-08082024-1850-001.sima"],

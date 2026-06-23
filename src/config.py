@@ -33,7 +33,7 @@ MAX_AUTOCORR_LAGS = 500  # number of autocorrelation lags to retain
 KNOWN_EEG_CODES = frozenset({0, 1, 2, 3})  # 0=awake, 1=NREM, 2=REM, 3=other
 
 # --------------- Data paths (override via environment variables) ---------------
-SLEEP_DATA_ROOT = os.environ.get("SLEEP_DATA_ROOT", "/data2/gergely/invivo_DATA/sleep")
+SLEEP_DATA_ROOT = os.environ.get("SLEEP_DATA_ROOT", "/mnt/d/from_data/invivo_DATA/sleep")
 GDRIVE_DATA_PATH = os.environ.get(
     "SLEEP_GDRIVE_DATA_PATH",
     "/gdrive/Shareddrives/Turi_lab/Data/Sleep/2p/Analysis/data",
