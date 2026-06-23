@@ -2,4 +2,3 @@
 pytest>=7.0
 # gspread and google-auth: Colab-only. Install manually if using Google Drive
 # integration (src/colab/google_drive.py). Not required for local analysis.
-dabest~=0.3.1

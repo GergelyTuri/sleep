@@ -1,115 +1,70 @@
 """Module for calculating effect size and significance using estimation statistics.
 
-This module provides functions for calculating Cohen's d effect size and p-value for unpaired and paired student t-tests
-between two sets of numbers. It uses estimation statistics to evaluate the difference between the two sets of numbers.
-
 Functions:
-- ci_difference_unpaired: Calculates Cohen's d effect size and p-value for an unpaired student t-test.
-- ci_difference_paired: Calculates Cohen's d effect size and p-value for a paired student t-test.
-- mean_activity: Calculates the mean activity of upregulated/downregulated cells.
-
-For more information on estimation statistics, refer to the documentation: https://acclab.github.io/DABEST-python-docs/tutorial.html
+- ci_difference_unpaired: Cohen's d and p-value for an unpaired t-test.
+- ci_difference_paired: Cohen's d and p-value for a paired t-test.
+- mean_activity: Mean activity of upregulated/downregulated cells.
 """
 
 from os.path import join
 
-import dabest
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 
-def ci_difference_unpaired(
-    awake_arr: np.array, nrem_arr: np.array, resamples: int = 5000
-) -> tuple:
-    """
+def _cohens_d_unpaired(a: np.ndarray, b: np.ndarray) -> float:
+    n_a, n_b = len(a), len(b)
+    pooled_std = np.sqrt(
+        ((n_a - 1) * np.std(a, ddof=1) ** 2 + (n_b - 1) * np.std(b, ddof=1) ** 2)
+        / (n_a + n_b - 2)
+    )
+    return (np.mean(a) - np.mean(b)) / pooled_std
 
-    Calculates the Cohen's d effect size and p-value for an unpaired student t-test between two sets of numbers
-    Uses estimation stats to evaluate the difference between two sets of numbers.
-    The documentation can be found here: https://acclab.github.io/DABEST-python-docs/tutorial.html
 
-    Parameters:
-    ===========
-    awake_arr: numpy array
-        1-D array of compiled dfof values for awake periods
-    nrem_arr: numpy array
-        1-D array of compiled dfof values for NREM periods
-    resamples: int
-        number of resamples to generate the effect size bootstrap
+def _cohens_d_paired(a: np.ndarray, b: np.ndarray) -> float:
+    diff = a - b
+    return np.mean(diff) / np.std(diff, ddof=1)
 
-    Returns:
-    ========
-    A tuple of two floats:
-    - difference: The Cohen's d effect size between the two arrays
-    - significance: boolean depending on the p-value for the (unpaired) student t-test
+
+def ci_difference_unpaired(awake_arr: np.ndarray, nrem_arr: np.ndarray) -> tuple:
+    """Cohen's d and significance for an unpaired t-test between two 1-D arrays.
+
+    Returns
+    -------
+    (difference, significance) : (float, bool)
+        Cohen's d and whether p < 0.05 (unpaired Student's t-test).
     """
     if not isinstance(awake_arr, np.ndarray) or not isinstance(nrem_arr, np.ndarray):
         raise TypeError("Inputs must be NumPy arrays.")
     if awake_arr.ndim != 1 or nrem_arr.ndim != 1:
         raise ValueError("Inputs must be 1-D arrays.")
 
-    dabest_dict = {"awake": awake_arr, "nrem": nrem_arr}
-    dabest_df = pd.DataFrame.from_dict(dabest_dict, orient="index").transpose()
-
-    # calculating the stats
-    two_groups_unpaired = dabest.load(
-        dabest_df, idx=("awake", "nrem"), resamples=resamples
-    )
-    stats = two_groups_unpaired.cohens_d
-    significance = stats.results["pvalue_students_t"][0] < 0.05
-    difference = stats.results["difference"][0]
-
-    return difference, significance
+    difference = _cohens_d_unpaired(awake_arr, nrem_arr)
+    _, pvalue = stats.ttest_ind(awake_arr, nrem_arr)
+    return difference, bool(pvalue < 0.05)
 
 
-def ci_difference_paired(
-    awake_arr: np.array, nrem_arr: np.array, resamples: int = 5000
-) -> tuple:
-    """
-    Calculates the Cohen's d effect size and p-value for a paired student t-test between two sets of numbers
-    Uses estimation stats to evaluate the difference between two sets of numbers.
-    The documentation can be found here: https://acclab.github.io/DABEST-python-docs/tutorial.html
+def ci_difference_paired(awake_arr: np.ndarray, nrem_arr: np.ndarray) -> tuple:
+    """Cohen's d and significance for a paired t-test between two 1-D arrays.
 
-    Parameters:
-    ===========
-    awake_arr: numpy array
-        1-D array of compiled dfof values for awake periods
-    nrem_arr: numpy array
-        1-D array of compiled dfof values for NREM periods
-    resamples: int
-        number of resamples to generate the effect size bootstrap
-
-    Returns:
-    ========
-    A tuple of two floats:
-    - difference: The Cohen's d effect size between the two arrays
-    - significance: boolean depending p-value for the (paired) student t-test
+    Returns
+    -------
+    (difference, significance) : (float, bool)
+        Cohen's d and whether p < 0.05 (paired Student's t-test).
     """
     if not isinstance(awake_arr, np.ndarray) or not isinstance(nrem_arr, np.ndarray):
         raise TypeError("Inputs must be NumPy arrays.")
     if awake_arr.ndim != 1 or nrem_arr.ndim != 1:
         raise ValueError("Inputs must be 1-D arrays.")
 
-    dabest_dict = {"awake": awake_arr, "nrem": nrem_arr}
-    dabest_df = pd.DataFrame.from_dict(dabest_dict, orient="index").transpose()
-
-    # calculating the stats
-    two_groups_paired = dabest.load(
-        dabest_df, idx=("awake", "nrem"), resamples=resamples
-    )
-    stats = two_groups_paired.cohens_d
-    significance = stats.results["pvalue_students_t"][0] < 0.05
-    difference = stats.results["difference"][0]
-
-    return difference, significance
+    difference = _cohens_d_paired(awake_arr, nrem_arr)
+    _, pvalue = stats.ttest_rel(awake_arr, nrem_arr)
+    return difference, bool(pvalue < 0.05)
 
 
 def mean_activity(data: str, direction: str = "Upregulated") -> pd.DataFrame:
-    """
-    Calculates the mean activity of upregulated/downregulated cells.
-    :param data: str, path to the data folder
-    :param direction: str, 'Upregulated' or 'Downregulated'
-    :return: pd.DataFrame, mean activity of upregulated/downregulated cells
-    """
+    """Mean activity of upregulated/downregulated cells."""
     dfof = pd.read_csv(join(data, "dfof.csv"))
     stat_results = pd.read_csv(join(data, "Significant_DABEST_NREM.csv"))
     upregulated = list(
