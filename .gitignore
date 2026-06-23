@@ -3,6 +3,7 @@ sleep.code-workspace
 settings.json
 .idea
 *.pyc
+*.egg-info/
 *.h5
 notebooks/**/*.png
 notebooks/data_export/fluorescence_export.ipynb
