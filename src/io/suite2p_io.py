@@ -18,6 +18,7 @@ Methods:
     save_time_avg_as_tiff(ops_array, save_path):"""
 
 import datetime
+import logging
 import warnings
 from dataclasses import dataclass
 from os.path import exists, isdir, join
@@ -76,9 +77,15 @@ class Suite2p:
         # Extract and convert the first column to boolean
         is_cell_boolean = iscells[:, 0].astype(bool)
 
-        raw_signal = np.load(join(path, f"{signal_source}.npy"), allow_pickle=True)
-        # Load the plane index
-        stat_file = np.load(join(path, "stat.npy"), allow_pickle=True)
+        signal_path = join(path, f"{signal_source}.npy")
+        if not exists(signal_path):
+            raise FileNotFoundError(f"Expected Suite2p signal file at {signal_path}")
+        raw_signal = np.load(signal_path, allow_pickle=True)
+
+        stat_path = join(path, "stat.npy")
+        if not exists(stat_path):
+            raise FileNotFoundError(f"Expected Suite2p stat file at {stat_path}")
+        stat_file = np.load(stat_path, allow_pickle=True)
         values_iplane = [d["iplane"] for d in stat_file if "iplane" in d]
         plane_index = np.array(
             values_iplane
@@ -102,9 +109,9 @@ class Suite2p:
             iscells, raw_signal, plane_index = self._load_data_from_dir(
                 COMBINED_DIR_NAME, signal_source
             )
-        except DirectoryNotFoundError:
+        except (DirectoryNotFoundError, FileNotFoundError):
             warnings.warn(
-                f"Combined directory not found, falling back to {PLANE0_DIR_NAME}."
+                f"Combined directory not found or incomplete, falling back to {PLANE0_DIR_NAME}."
             )
             iscells, raw_signal, plane_index = self._load_data_from_dir(
                 PLANE0_DIR_NAME, signal_source
@@ -223,7 +230,7 @@ class Suite2p:
         """
         ops_path = join(self.s2p_folder, "ops1.npy")
         if not exists(ops_path):
-            print(f"File not found: {ops_path}")
+            logging.warning("File not found: %s", ops_path)
             return None
 
         ops_array = np.load(ops_path, allow_pickle=True)
@@ -309,9 +316,9 @@ class Suite2p:
             if not exists(full_save_path):
                 try:
                     fig.savefig(full_save_path)
-                    print(f"Saved plot to {full_save_path}")
+                    logging.info("Saved plot to %s", full_save_path)
                 except Exception as e:
-                    print(f"Error saving plot to {full_save_path}: {e}")
+                    logging.error("Error saving plot to %s: %s", full_save_path, e)
                 finally:
                     plt.close(fig)
             else:
@@ -322,9 +329,9 @@ class Suite2p:
                 full_save_path = join(save_path, filename)
                 try:
                     fig.savefig(full_save_path)
-                    print(f"Saved new plot to {full_save_path}")
+                    logging.info("Saved new plot to %s", full_save_path)
                 except Exception as e:
-                    print(f"Error saving new plot to {full_save_path}: {e}")
+                    logging.error("Error saving new plot to %s: %s", full_save_path, e)
                 finally:
                     plt.close(fig)
         else:
@@ -366,4 +373,4 @@ class Suite2p:
         else:
             tif_images[0].save(save_path)
 
-        print(f"Saved time-averaged image(s) to {save_path}")
+        logging.info("Saved time-averaged image(s) to %s", save_path)

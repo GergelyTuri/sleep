@@ -6,8 +6,13 @@ should be preserved (along with its index)."""
 
 import pandas as pd
 
+try:
+    from src.config import MAXMIN_WINDOW, MAXMIN_SIGMA, QUANTILE_BASELINE, FILTER_MIN_PERIODS
+except ImportError:
+    from config import MAXMIN_WINDOW, MAXMIN_SIGMA, QUANTILE_BASELINE, FILTER_MIN_PERIODS
 
-def maxmin_filter(signal, window=300, sigma=5, min_periods=0.2):
+
+def maxmin_filter(signal, window=MAXMIN_WINDOW, sigma=MAXMIN_SIGMA, min_periods=FILTER_MIN_PERIODS):
     """Calculate baseline as the rolling maximum of the rolling minimum of the
     smoothed trace
 
@@ -37,16 +42,18 @@ def maxmin_filter(signal, window=300, sigma=5, min_periods=0.2):
     return smooth_signal.rolling(**kwargs).min().rolling(**kwargs).max()
 
 
-def smooth_quantile_filter(signal, quantile=0.08, window=300, sigma=5, min_periods=0.2):
-    kwargs = {
-        "window": window,
-        "min_periods": int(window * min_periods),
-        "center": True,
-        "axis": 1,
-    }
-
-    smooth_signal = (
-        pd.DataFrame(signal).rolling(win_type="gaussian", **kwargs).mean(std="sigma")
-    )
-
-    return smooth_signal.rolling(**kwargs).quantile(quantile)
+# DEAD CODE? std="sigma" (string literal) should be std=sigma (variable) — crashes at runtime.
+# def smooth_quantile_filter(signal, quantile=QUANTILE_BASELINE, window=MAXMIN_WINDOW, sigma=MAXMIN_SIGMA, min_periods=FILTER_MIN_PERIODS):
+#     """Estimate baseline as the rolling quantile of the Gaussian-smoothed trace."""
+#     kwargs = {
+#         "window": window,
+#         "min_periods": int(window * min_periods),
+#         "center": True,
+#         "axis": 1,
+#     }
+#
+#     smooth_signal = (
+#         pd.DataFrame(signal).rolling(win_type="gaussian", **kwargs).mean(std=sigma)
+#     )
+#
+#     return smooth_signal.rolling(**kwargs).quantile(quantile)

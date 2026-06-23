@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sleep"
+version = "0.11"
+description = "analysis code for sleep data"
+authors = [{name = "Gergely Turi", email = "gt2253@cumc.columbia.edu"}]
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/GergelyTuri/sleep"
+
+[tool.setuptools.packages.find]
+include = ["src", "src.*"]

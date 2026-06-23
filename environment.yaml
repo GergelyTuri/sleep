@@ -4,19 +4,20 @@ channels:
 dependencies:
   - python=3.9
   - pip
-  - numpy
-  - scipy
-  - pandas
-  - matplotlib
-  - seaborn
+  - numpy>=2.0,<3
+  - scipy>=1.13,<2
+  - pandas>=2.3,<3
+  - matplotlib>=3.9,<4
+  - seaborn>=0.13,<1
+  - statsmodels>=0.14,<1
+  - pillow>=11,<12
+  - tslearn>=0.6,<1
   - jupyter
   - ipywidgets
   - tifffile
   - nbformat
   - plotly
   - pip:
-      - pymysql
+      - pymysql>=1.1,<2
       - ydata-profiling
       - h5py
-
-

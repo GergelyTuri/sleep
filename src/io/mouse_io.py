@@ -4,10 +4,16 @@ date: 2023-10-16
 204-11-09: major refactoring. this used to be the ImagingData class,
 now it is the MouseData class"""
 
+import os
 from dataclasses import dataclass
 from os import walk
 from pathlib import Path
 from typing import List, Union
+
+try:
+    from src.config import SLEEP_DATA_ROOT as _DEFAULT_ROOT
+except ImportError:
+    from config import SLEEP_DATA_ROOT as _DEFAULT_ROOT
 
 
 @dataclass
@@ -24,7 +30,7 @@ class MouseData:
     """
 
     mouse_id: Union[str, Path]
-    root_folder: Union[str, Path] = "/data2/gergely/invivo_DATA/sleep"
+    root_folder: Union[str, Path] = _DEFAULT_ROOT
 
     def __post_init__(self):
         """
@@ -69,6 +75,11 @@ class MouseData:
         ValueError
             If no folders meeting the condition are found.
         """
+        if not self.mouse_folders.exists():
+            raise FileNotFoundError(
+                f"Expected mouse data directory at {self.mouse_folders} — "
+                f"check mouse_id or set the SLEEP_DATA_ROOT environment variable."
+            )
         folders = []
         for dirpath, dirnames, _ in walk(self.mouse_folders):
             for dirname in dirnames:

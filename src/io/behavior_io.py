@@ -7,7 +7,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from . import imaging_class as ic
+from . import imaging_io as ic
 
 
 @dataclass
@@ -78,8 +78,14 @@ class BehaviorData:
             pd.Series: A one-dimensional series of booleans, where False signifies immobile
             times and True signifies mobile times.
         """
-        # Getting the framerate from the imaging metadata
+        # Getting the framerate from the imaging metadata.
+        # Assumes behavior_dir is <TSeries>/.sima/behavior/ (parents[1] = TSeries root).
         tSeries_path = (self.behavior_dir).parents[1]
+        if not tSeries_path.exists():
+            raise FileNotFoundError(
+                f"Expected TSeries folder at {tSeries_path} — "
+                f"verify behavior_dir sits inside <TSeries>/.sima/behavior/."
+            )
         imaging = ic.Imaging(tSeries_path)
         imaging_metadata = imaging.get_imaging_metadata()
 
@@ -92,6 +98,12 @@ class BehaviorData:
                 raise ValueError(f"Invalid frame rate obtained for multiplane imaging: {framerate}")
         else:
             raise ValueError(f"Unknown imaging sequence type: {sequence_type}")
+
+        if not (1.0 <= framerate <= 100.0):
+            raise ValueError(
+                f"Frame rate {framerate} Hz is outside the plausible range (1–100 Hz). "
+                f"Check 'fps' in imaging_metadata.json at {tSeries_path}."
+            )
 
         # Calculating mobile/immobile periods
         velocity_series = pd.Series(velocity).astype(float)

@@ -1,13 +1,25 @@
 """Class for calculating the delta F over F.
 based on lab3
 """
+import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
 
 from . import filters
-from .suite2p_class import Suite2p
+from src.io.suite2p_io import Suite2p
+
+try:
+    from src.config import (
+        SUITE2P_DFOF_WINDOW, SUITE2P_DFOF_SIGMA, SUITE2P_DFOF_MIN_PERIODS,
+        NPIL_COEFF, JIA_T1, JIA_T2,
+    )
+except ImportError:
+    from config import (
+        SUITE2P_DFOF_WINDOW, SUITE2P_DFOF_SIGMA, SUITE2P_DFOF_MIN_PERIODS,
+        NPIL_COEFF, JIA_T1, JIA_T2,
+    )
 
 
 class DFOFStrategy(ABC):
@@ -126,7 +138,7 @@ class SlowTrendMixin:
         if window is None:
             return pd.DataFrame(np.zeros(signal.shape))
         else:
-            print("Calculating slow trend")
+            logging.info("Calculating slow trend")
             if not isinstance(signal, pd.DataFrame):
                 signal = pd.DataFrame(signal)
             self.slow_trend = signal.rolling(
@@ -176,6 +188,10 @@ class Suite2pDFOF(DFOFStrategy):
         all time points. This is helpful to avoid artifactually increasing
         signal amplitudes over time due to a monotonically decaying baseline,
         for example during photobleaching. Defaults to False
+    npil_coeff : float, optional
+        Scaling coefficient applied to the neuropil before subtraction
+        (F_corrected = F - npil_coeff * Fneu). Suite2p convention is 0.7.
+        Defaults to NPIL_COEFF (0.7).
 
     Attributes
     ----------
@@ -192,15 +208,17 @@ class Suite2pDFOF(DFOFStrategy):
 
     def __init__(
         self,
-        window=600,
-        sigma=10,
-        min_periods=0.2,
+        window=SUITE2P_DFOF_WINDOW,
+        sigma=SUITE2P_DFOF_SIGMA,
+        min_periods=SUITE2P_DFOF_MIN_PERIODS,
         constant_denominator=False,
+        npil_coeff=NPIL_COEFF,
     ):
         self.window = window
         self.sigma = sigma
         self.min_periods = min_periods
         self.constant_denominator = constant_denominator
+        self.npil_coeff = npil_coeff
 
     def _filter_final_signal(self, signal):
         """No final filtering"""
@@ -232,7 +250,7 @@ class Suite2pDFOF(DFOFStrategy):
         If the `constant_denominator` attribute is True, then the function will replace the baseline_total array with its median
         value, effectively setting a constant denominator in the signal processing."""
 
-        sig_residual = signal - npil
+        sig_residual = signal - self.npil_coeff * npil
 
         baseline_sig = filters.maxmin_filter(
             sig_residual,
@@ -273,7 +291,7 @@ class Suite2pDFOF(DFOFStrategy):
             pass
 
         base = self.calculate_baseline(signal, npil)
-        return self._filter_final_signal(((signal - npil) - base[1]) / base[0])
+        return self._filter_final_signal(((signal - self.npil_coeff * npil) - base[1]) / base[0])
 
 
 class JiaDFOF(DFOFStrategy, SlowTrendMixin):
@@ -315,8 +333,8 @@ class JiaDFOF(DFOFStrategy, SlowTrendMixin):
 
     def __init__(
         self,
-        t1=90,
-        t2=1800,
+        t1=JIA_T1,
+        t2=JIA_T2,
         exp=None,
         min_periods_t1=0.2,
         min_periods_t2=0.2,

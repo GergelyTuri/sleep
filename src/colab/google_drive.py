@@ -3,14 +3,22 @@ Google Drive
 Author: Gergely Turi
 """
 
+import os
 from os.path import dirname, join
 
 import gspread
 import pandas as pd
 from google.auth import default
-from google.colab import auth
 
-BASE_DATA_PATH = "/gdrive/Shareddrives/Turi_lab/Data/Sleep/2p/Analysis/data"
+try:
+    from google.colab import auth
+except ImportError:
+    auth = None  # not running in Colab
+
+try:
+    from src.config import GDRIVE_DATA_PATH as BASE_DATA_PATH
+except ImportError:
+    from config import GDRIVE_DATA_PATH as BASE_DATA_PATH
 
 
 def useful_datasets():

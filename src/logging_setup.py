@@ -5,6 +5,8 @@ import sys
 
 
 class LoggingSetup:
+    """Configures a logger that writes to both a file and stdout."""
+
     @staticmethod
     def configure_logger(log_file: str = "parsing_log.log", level=logging.INFO):
         """

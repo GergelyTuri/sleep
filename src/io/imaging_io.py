@@ -19,15 +19,18 @@ class Imaging:
 
     def get_imaging_metadata(self):
         """Returns the imaging metadata from the t-series folder."""
-        metadata_file = join(self.tseries_dir, "imaging_metadata.json")
+        metadata_path = self.tseries_dir / "imaging_metadata.json"
+        if not metadata_path.exists():
+            raise FileNotFoundError(
+                f"Expected imaging metadata at {metadata_path} — "
+                f"run metadata extraction for this TSeries folder first."
+            )
         try:
-            with open(metadata_file, "r") as f:
+            with open(metadata_path, "r") as f:
                 metadata = json.load(f)
             return metadata
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Metadata file not found at {metadata_file}")
         except json.JSONDecodeError:
-            raise ValueError(f"Could not decode JSON from {metadata_file}")
+            raise ValueError(f"Could not decode JSON from {metadata_path}")
 
     def multiplane_frame_rate(self):
         """Returns the frame rate for multiplane imaging."""

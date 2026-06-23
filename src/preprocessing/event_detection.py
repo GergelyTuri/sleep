@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import numpy as np
@@ -202,25 +203,25 @@ class EventDetection:
         Returns:
             Tuple[List[List[Tuple]], np.ndarray, np.ndarray]: (final transients, final noise levels, denoised signals).
         """
-        print("Step 0: Applying denoising...")
+        logging.info("Step 0: Applying denoising...")
         dfof_denoised = self.apply_denoising(dfof)
 
-        print("Step 1: Initial noise estimation...")
+        logging.info("Step 1: Initial noise estimation...")
         initial_noise = self.estimate_noise(dfof_denoised)
 
-        print("Step 2: Defining thresholds...")
+        logging.info("Step 2: Defining thresholds...")
         thresholds = np.full((self.nSigmaBins, 1), self.MIN_DURATION)
 
-        print("Step 3: Initial transient detection...")
+        logging.info("Step 3: Initial transient detection...")
         initial_transients = self.identify_transients(dfof_denoised, frame_period, thresholds, initial_noise)
 
-        print("Step 4: Final noise estimation excluding detected transients...")
+        logging.info("Step 4: Final noise estimation excluding detected transients...")
         final_noise = self.estimate_noise(dfof_denoised, transients=initial_transients)
 
-        print("Step 5: Final transient detection...")
+        logging.info("Step 5: Final transient detection...")
         final_transients = self.identify_transients(dfof_denoised, frame_period, thresholds, final_noise)
 
-        print("Transient detection completed.")
+        logging.info("Transient detection completed.")
         return final_transients, final_noise, dfof_denoised
 
     def plot_raw_and_denoised(self, raw_signals: np.ndarray, denoised_signals: np.ndarray, cell_index: int = 0, save_path: str = None):
@@ -266,6 +267,7 @@ class EventDetection:
           if save_path:
               fig.write_html(save_path)
           fig.show()
+          return fig
 
 
     def plot_transient_events(self, dfof_signals: np.ndarray, transients: List[List[Tuple]], cell_index: int = 0, save_path: str = None):
@@ -339,6 +341,7 @@ class EventDetection:
         if save_path:
             fig.write_html(save_path)
         fig.show()
+        return fig
 
     def plot_noise(self, dfof_signals: np.ndarray, noise: np.ndarray, cell_index: int = 0, save_path: str = None):
         """
@@ -370,6 +373,7 @@ class EventDetection:
         if save_path:
             fig.write_html(save_path)
         fig.show()
+        return fig
 
 
     def visualize_all(self, raw_signals: np.ndarray, denoised_signals: np.ndarray, noise: np.ndarray, transients: List[List[Tuple]], cell_index: int = 0, save_prefix: str = None):
@@ -438,4 +442,4 @@ class EventDetection:
         """
         df = self.transients_to_dataframe(transients)  
         df.to_csv(file_name, index=False)
-        print(f"Transients exported to {file_name}.")
+        logging.info("Transients exported to %s.", file_name)

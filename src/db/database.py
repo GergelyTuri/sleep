@@ -1,7 +1,9 @@
 import json
+import logging
 import os
 import os.path
 import pickle
+import re
 import time
 
 # import MySQLdb
@@ -84,7 +86,7 @@ class ExperimentDatabase:
         cursor = self._database.cursor()
         cursor.execute(sql, args)
         if verbose:
-            print(sql)
+            logging.debug(sql)
 
         result = cursor.fetchone()
         return result
@@ -112,7 +114,7 @@ class ExperimentDatabase:
         cursor = self._database.cursor()
         cursor.execute(sql, args)
         if verbose:
-            print(sql)
+            logging.debug(sql)
 
         result = cursor.fetchall()
         return result
@@ -149,7 +151,7 @@ class ExperimentDatabase:
             return False
         else:
             if verbose:
-                print(sql)
+                logging.debug(sql)
             self._database.commit()
         return True
 
@@ -169,7 +171,7 @@ def add_experiment_to_database(filename, trial_id=None, overwrite=False):
         entry is already associated with this behavior data file
     """
     if not overwrite and fetch_trial_id(behavior_file=filename) is not None:
-        print(f"trial {filename} already loaded")
+        logging.info("trial %s already loaded", filename)
         return fetch_trial_id(behavior_file=filename)
 
     # get trial info from pickled behavior file
@@ -194,7 +196,7 @@ def add_experiment_to_database(filename, trial_id=None, overwrite=False):
     else:
         delete_all_trial_attrs(trial_id)
 
-    print("loading trial {}: {}".format(trial_id, filename))
+    logging.info("loading trial %s: %s", trial_id, filename)
 
     for key in filter(
         lambda k: k not in ["mouse", "start_time", "stop_time", "experiment_group"],
@@ -278,11 +280,9 @@ def read_mouse_weights(mouse_name, limit=10):
         verbose=False,
     )
 
-    def print_weight(weight):
-        print(f"{weight['date']} \t {weight['weight']}")
-
-    print(f"Recent records for mouse {mouse_name}")
-    map(print_weight, weights)
+    logging.info("Recent records for mouse %s", mouse_name)
+    for w in weights:
+        logging.info("%s\t%s", w['date'], w['weight'])
 
     average = db.select(
         """
@@ -295,7 +295,7 @@ def read_mouse_weights(mouse_name, limit=10):
         args=[mouse_name],
         verbose=False,
     )
-    print(f"\naverage weight: {average.values()[0]}\n\n")
+    logging.info("average weight: %s", list(average.values())[0])
 
 
 def insert_mouse_weight(mouse_name, weight, date=None):
@@ -777,7 +777,15 @@ def delete_all_mouse_attrs(mouse_id):
     _delete_all_attrs("mouse_pages", "mouse_id", mouse_id)
 
 
+_SAFE_PROJECT_NAME_RE = re.compile(r"^[\w\- ]+$")
+
+
 def _project_filter_sql(project_name):
+    if not _SAFE_PROJECT_NAME_RE.match(str(project_name)):
+        raise ValueError(
+            f"project_name {project_name!r} contains invalid characters — "
+            "only alphanumeric, hyphen, underscore, and space are allowed."
+        )
     return """
         (SELECT DISTINCT m.*
          FROM mice m
@@ -1039,8 +1047,10 @@ def fetch_attribute_values(attr, project_name=None):
     table = "mice"
     if attr in db._trial_fields:
         condition = ""
+        condition_args = []
         if project_name is not None:
-            condition = "WHERE experiment_group='{}'".format(project_name)
+            condition = "WHERE experiment_group=%s"
+            condition_args = [project_name]
 
         values = db.select_all(
             """
@@ -1050,7 +1060,8 @@ def fetch_attribute_values(attr, project_name=None):
             {}
         """.format(
                 attr, condition
-            )
+            ),
+            args=condition_args,
         )
         return [value[attr] for value in values]
 
@@ -1162,6 +1173,9 @@ def fetch_mice(*args, **kwargs):
         else:
             conditions.append(condition_string.format(key))
 
+    # TODO: convert string-value interpolation below to parameterized %s queries.
+    # Currently string values are quoted and inlined into the SQL, which is a
+    # SQL-injection risk when caller-supplied kwargs contain arbitrary strings.
     trial_condition = "({}={})"
     condition_string = "(attribute='{}' AND value={})"
     for key, values in kwargs.items():

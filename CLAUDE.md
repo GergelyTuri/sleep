@@ -14,7 +14,7 @@ conda activate sleep
 pip install -e .
 ```
 
-The package is installed as `sleep` (editable). Additional pip dependencies not in `environment.yaml` are listed in `requirements.txt`; install both.
+The package is installed as `sleep` (editable via `pyproject.toml`). Pip-only extras are in `requirements.txt`; install both.
 
 ## Running Notebooks
 
@@ -22,46 +22,69 @@ The package is installed as `sleep` (editable). Additional pip dependencies not 
 jupyter notebook
 ```
 
-Tests are also notebooks (in `tests/`), not a pytest suite. Open them in Jupyter and run cells manually. There are no shell-runnable tests.
+Notebook-based tests live in `tests/` and are run manually in Jupyter. A shell-runnable pytest suite also exists:
+
+```bash
+pytest tests/test_unit.py -v
+```
 
 ## Project Structure
 
 ```
 src/
-  classes/         # Core dataclasses and analysis classes
-  xcorr/           # Cross-correlation analysis
-  *.py             # Standalone analysis modules
-notebooks/         # Analysis organized by topic
-scripts/           # One-off processing scripts
-tests/             # Notebook-based tests
+  config.py              # Centralized analysis parameters (all numeric defaults)
+  logging_setup.py       # Logger configuration helper
+  io/                    # Data loading — one file per data source
+    suite2p_io.py        # Suite2p class (loads F.npy, Fneu.npy, spks.npy, iscell.npy)
+    imaging_io.py        # Imaging class (reads imaging_metadata.json)
+    behavior_io.py       # BehaviorData class (velocity JSON, mobility epochs)
+    eeg_io.py            # EegData class (scored EEG CSVs)
+    mouse_io.py          # MouseData class (filesystem walk for a mouse)
+    sleep_experiment.py  # SleepExperiment class (creates .sima subfolder layout)
+    session_io.py        # load_session() → SessionData (combines all sources in one call)
+  preprocessing/
+    filters.py           # maxmin_filter baseline
+    dfof.py              # Suite2pDFOF, JiaDFOF (strategy-pattern dF/F calculators)
+    event_detection.py   # EventDetection, Denoiser (calcium transient detection)
+  analysis/
+    calc_module.py       # Epoch labeling, brain_state_filter helpers
+    clustering.py        # Hierarchical clustering, sleep-epoch utilities
+    frequency_psd.py     # freq_calc, calculate_psd, calculate_autocorrelations
+    custom_statistics.py # Mann-Whitney U, Bonferroni correction
+    estimation_stats.py  # Cohen's d, DABEST estimation stats
+    xcorr/               # Cross-correlation analysis
+  visualization/
+    full_frame_analysis.py   # Butterworth filters, autocorrelation plotting
+    frequency_psd_plots.py   # plot_psd, spectral_density_plot
+  db/
+    database.py          # ExperimentDatabase — MySQL wrapper via pymysql
+  colab/                 # Colab-only utilities (import google.colab; guarded at top)
+    google_utils.py
+    google_drive.py
+notebooks/               # Analysis organized by topic
+scripts/                 # One-off processing scripts
+tests/                   # Notebook-based tests + tests/test_unit.py (pytest)
 ```
 
-### Key Classes (`src/classes/`)
+### Key classes and their import paths
 
-- **`MouseData`** (`mouse_class.py`) — entry point for a mouse's data. Takes `mouse_id` and `root_folder` (default `/data2/gergely/invivo_DATA/sleep`). Walks the filesystem to find TSeries, Suite2p, `.sima`, EEG, and behavior subdirectories.
+- **`MouseData`** (`src.io.mouse_io`) — entry point for a mouse's data. Takes `mouse_id` and `root_folder` (env var `SLEEP_DATA_ROOT`, default `/data2/gergely/invivo_DATA/sleep`). Walks the filesystem to find TSeries, Suite2p, `.sima`, EEG, and behavior subdirectories.
 
-- **`SleepExperiment`** (`sleep_experiment.py`) — wraps a single TSeries recording session. Creates the standard subfolder layout (`behavior/`, `eeg/`, `plots/`) inside `.sima` directories.
+- **`SessionData` / `load_session()`** (`src.io.session_io`) — convenience loader: given a `.sima` folder and an optional Suite2p folder, returns a `SessionData` with `dfof`, `eeg`, `mobility`, and `velocity` already populated.
 
-- **`Suite2p`** (`suite2p_class.py`) — loads Suite2p output (`.npy` files). Prefers the `combined/` directory and falls back to `plane0/` for single-plane data. Key methods: `get_cells()`, `get_npil()`, `get_spikes()`, `get_iscell_indices()`, `plot_time_avg_image()`.
+- **`SleepExperiment`** (`src.io.sleep_experiment`) — creates the standard subfolder layout (`behavior/`, `eeg/`, `plots/`) inside `.sima` directories.
 
-- **`Imaging`** (`imaging_class.py`) — reads `imaging_metadata.json` from a TSeries folder; handles both single-plane and multi-plane frame rate calculations.
+- **`Suite2p`** (`src.io.suite2p_io`) — loads Suite2p output (`.npy` files). Prefers the `combined/` directory and falls back to `plane0/`. Key methods: `get_cells()`, `get_npil()`, `get_spikes()`, `get_iscell_indices()`, `plot_time_avg_image()`.
 
-- **`BehaviorData`** (`behavior_class.py`) — loads `filtered_velocity.json` and computes mobility/immobility epochs. Requires `imaging_metadata.json` to exist two levels above the behavior directory (TSeries root) to get the frame rate.
+- **`Imaging`** (`src.io.imaging_io`) — reads `imaging_metadata.json`; handles both single-plane and multi-plane frame rate calculations.
 
-- **`EegData`** (`eeg_class.py`) — reads scored EEG CSVs (`sleep.csv`). Converts integer scores to brain-state columns: awake=0, NREM=1, REM=2, other=3. Also loads `velo_eeg.csv` for velocity-EEG combined analysis.
+- **`BehaviorData`** (`src.io.behavior_io`) — loads `filtered_velocity.json` and computes mobility/immobility epochs. Requires `imaging_metadata.json` two levels above the behavior directory (TSeries root).
 
-- **`Suite2pDFOF` / `JiaDFOF`** (`dfof.py`) — strategy-pattern dF/F calculators. `Suite2pDFOF` does neuropil-corrected dF/F using a maxmin filter baseline. `JiaDFOF` follows Jia et al. 2010. Both accept `signal` as a 2D `(n_rois, n_timepoints)` array.
+- **`EegData`** (`src.io.eeg_io`) — reads scored EEG CSVs (`sleep.csv`). Converts integer scores to brain-state columns: awake=0, NREM=1, REM=2, other=3.
 
-- **`ExperimentDatabase`** (`database.py`) — MySQL wrapper via pymysql. Connection parameters come from env vars `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
+- **`Suite2pDFOF` / `JiaDFOF`** (`src.preprocessing.dfof`) — strategy-pattern dF/F calculators. `Suite2pDFOF` does neuropil-corrected dF/F (coefficient 0.7) using a maxmin filter baseline. `JiaDFOF` follows Jia et al. 2010. Both accept `signal` as a 2D `(n_rois, n_timepoints)` array.
 
-### Standalone Modules (`src/`)
-
-- `frequency_psd.py` — Welch PSD and frequency spectrum utilities
-- `full_frame_analysis.py` — Butterworth filters and autocorrelation for full-frame signals
-- `clustering.py` — time-series clustering helpers
-- `custom_statistics.py` / `estimation_stats.py` — statistical utilities (includes dabest integration)
-- `google_drive.py` — Google Drive/Sheets utilities (Colab-only; uses `google.colab.auth`)
-- `xcorr/xcorr_analysis.py` — cross-correlation and heatmap plotting
+- **`ExperimentDatabase`** (`src.db.database`) — MySQL wrapper via pymysql. Connection parameters from env vars `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
 
 ## Data Layout on Disk
 
@@ -79,4 +102,4 @@ tests/             # Notebook-based tests
 
 ## Google Colab vs. Local
 
-`src/classes/google_utils.py` and `src/google_drive.py` import `google.colab` and will fail locally. These are Colab-only utilities. Everything else in `src/` is usable in either environment.
+`src/colab/google_utils.py` and `src/colab/google_drive.py` import `google.colab` and will fail locally — both files guard this with a `try/except ImportError`. Everything else in `src/` is usable in either environment.

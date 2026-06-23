@@ -3,6 +3,8 @@
 still WIP and mostly untested."""
 from __future__ import print_function
 
+import logging
+import os
 from pathlib import Path
 from pprint import pprint
 
@@ -10,9 +12,20 @@ import google.auth
 import gspread
 import pandas as pd
 from google.auth import default
-from google.colab import auth, drive
+
+try:
+    from google.colab import auth, drive
+except ImportError:
+    auth = None  # not running in Colab
+    drive = None
+
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+try:
+    from src.config import GDRIVE_ROOT as _GDRIVE_ROOT
+except ImportError:
+    from config import GDRIVE_ROOT as _GDRIVE_ROOT
 
 
 class GoogleDrive:
@@ -32,7 +45,7 @@ class GoogleDrive:
     
     def shared_drive_data_path(self):
         """Returns the path of the Data folder of the Turi_lab Google Drive."""
-        return Path('/gdrive/Shareddrives/Turi_lab/Data/')
+        return Path(_GDRIVE_ROOT)
 
     def load_spreadsheet_data(self, spreadsheet: str, sheet: str="Sheet1") -> pd.DataFrame:
         """
@@ -90,7 +103,7 @@ class Mouse:
             return pprint(response)
 
         except HttpError as error:
-            print(f"An error occurred: {error}")
+            logging.error("An error occurred: %s", error)
             return 0
 
 class MouseDatabase(GoogleDrive):

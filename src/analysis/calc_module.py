@@ -4,6 +4,7 @@ Needs to be orgainzed.
 Author: Gergely Turi
 email: gt2253@cumc.columbia.edu
 """
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,11 @@ import pandas as pd
 
 import scipy.stats as stats
 from collections import Counter
+
+try:
+    from src.config import MIN_EPOCH_FRAMES, IMMOBILITY_VELOCITY_THRESHOLD
+except ImportError:
+    from config import MIN_EPOCH_FRAMES, IMMOBILITY_VELOCITY_THRESHOLD
 
 def label_consecutive_states(data: pd.Series, state: str='NREM') -> pd.Series:
 
@@ -55,7 +61,7 @@ def label_consecutive_states(data: pd.Series, state: str='NREM') -> pd.Series:
     for i, val in data.items():
         if val:
             consecutive_count += 1
-            if consecutive_count > 100:
+            if consecutive_count > MIN_EPOCH_FRAMES:
                 df.loc[i-consecutive_count+1:i] = f'{state}{label_count}'
                 label_count += 1
                 consecutive_count = 0
@@ -65,6 +71,7 @@ def label_consecutive_states(data: pd.Series, state: str='NREM') -> pd.Series:
 
     return df
 
+# TODO: move brain_state_filter to eeg_class.EegData — it operates only on EEG/velocity DataFrames
 def brain_state_filter(velo_eeg_df: pd.DataFrame, states:list) -> tuple:
     """
     sets up boolean masks for brain states
@@ -88,31 +95,31 @@ def brain_state_filter(velo_eeg_df: pd.DataFrame, states:list) -> tuple:
     l1 = ['NREM', 'REM', 'awake']
     filters = {}
     if Counter(states) == Counter(l1):
-        print(f'Making filters for {l1} and locomotion')
+        logging.info("Making filters for %s and locomotion", l1)
         awake = ((velo_eeg_df['NREM']==False) &
              (velo_eeg_df['REM']==False) &
-             (velo_eeg_df['filtered velo']<0.1))
+             (velo_eeg_df['filtered velo']<IMMOBILITY_VELOCITY_THRESHOLD))
         nrem = ((velo_eeg_df['NREM']) &
-                (velo_eeg_df['filtered velo']<0.1))
+                (velo_eeg_df['filtered velo']<IMMOBILITY_VELOCITY_THRESHOLD))
         rem = ((velo_eeg_df['REM']) &
-               (velo_eeg_df['filtered velo']<0.1))
+               (velo_eeg_df['filtered velo']<IMMOBILITY_VELOCITY_THRESHOLD))
         locomotion = ((velo_eeg_df['NREM']==False) &
               (velo_eeg_df['REM']==False) &
-              (velo_eeg_df['filtered velo']>=0.1))
+              (velo_eeg_df['filtered velo']>=IMMOBILITY_VELOCITY_THRESHOLD))
         filters = {'awake':awake,
                   'NREM': nrem,
                   'REM':rem,
                   'locomotion':locomotion}        
     else:
-        print('no REM, making filters for NREM, awake and locomotion')
+        logging.info("no REM, making filters for NREM, awake and locomotion")
         awake = ((velo_eeg_df['NREM']==False) &
              (velo_eeg_df['REM']==False) &
-             (velo_eeg_df['filtered velo']<0.1))
+             (velo_eeg_df['filtered velo']<IMMOBILITY_VELOCITY_THRESHOLD))
         nrem = ((velo_eeg_df['NREM']) &
-                (velo_eeg_df['filtered velo']<0.1))
+                (velo_eeg_df['filtered velo']<IMMOBILITY_VELOCITY_THRESHOLD))
         locomotion = ((velo_eeg_df['NREM']==False) &
               (velo_eeg_df['REM']==False) &
-              (velo_eeg_df['filtered velo']>=0.1))
+              (velo_eeg_df['filtered velo']>=IMMOBILITY_VELOCITY_THRESHOLD))
         filters = {'awake': awake,
                   'nrem': nrem,
                   'locomotion':locomotion}
@@ -163,7 +170,7 @@ def data_loader(data_dir: str, data_type: str, mouse_id: str,
     # loading stat results for significantly up and downregulated cells
     # during NREM
     sig_cells = pd.read_csv(Path(data_loc).joinpath('Significant_paired_DABEST_NREM.csv'))
-    print(f'number of cells in this recording: {len(sig_cells)}')
+    logging.info("number of cells in this recording: %d", len(sig_cells))
 
     # loadig EEG and behavior data
     eeg_velocity = pd.read_csv(Path(data_loc).joinpath('velo_eeg.csv'))

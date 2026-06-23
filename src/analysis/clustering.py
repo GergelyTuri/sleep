@@ -5,12 +5,17 @@ Author: Gergely Turi
 from os.path import join
 from typing import Optional, Union
 
+try:
+    from src.config import MIN_SLEEP_EPOCH_FRAMES
+except ImportError:
+    from config import MIN_SLEEP_EPOCH_FRAMES
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.cluster.hierarchy import leaves_list, linkage
-from scipy.spatial.distance import cosine, pdist, squareform
+from scipy.spatial.distance import pdist, squareform
 
 
 def df_generator(data):
@@ -41,7 +46,7 @@ def df_generator(data):
     df['length'] = pd.to_numeric(df['length'])
 
     # Filter out rows where length < 600
-    del_rows = df[df['length'] < 600]['n'].tolist()
+    del_rows = df[df['length'] < MIN_SLEEP_EPOCH_FRAMES]['n'].tolist()
     df_sleep = df[~df['n'].isin(del_rows)].reset_index(drop=True)
 
     # Update start and end columns
@@ -191,6 +196,7 @@ def calculate_cosine_distance(data: pd.DataFrame, state: str, save_path: Optiona
     return pd.DataFrame(dist_data)
 
 def sort_distance_matrix(dist_matrix):
+    """Reorder rows and columns of a square distance matrix by hierarchical clustering."""
     # Convert the cosine distance matrix to a condensed form since linkage
     # expects a condensed distance matrix
     condensed_dist = squareform(dist_matrix, checks=False)

@@ -3,12 +3,18 @@ author: @gergelyturi
 date: 2023-10-16
 204-11-09: major refactoring"""
 
+import logging
 from dataclasses import dataclass
 from os.path import join
 from pathlib import Path
 from typing import Union
 
 import pandas as pd
+
+try:
+    from src.config import KNOWN_EEG_CODES as _KNOWN_EEG_CODES
+except ImportError:
+    from config import KNOWN_EEG_CODES as _KNOWN_EEG_CODES
 
 
 @dataclass
@@ -87,6 +93,12 @@ class EegData:
         if processed:
             # Process scores into brain state columns
             eeg_df["score"] = eeg_df["score"].astype(int)
+            unknown_codes = set(eeg_df["score"].unique()) - _KNOWN_EEG_CODES
+            if unknown_codes:
+                logging.warning(
+                    f"{eeg_file}: unrecognized EEG score codes {sorted(unknown_codes)}. "
+                    f"Rows with these codes will have all brain-state columns set to 0."
+                )
             eeg_df["awake"] = (eeg_df["score"] == 0).astype(int)
             eeg_df["NREM"] = (eeg_df["score"] == 1).astype(int)
             eeg_df["REM"] = (eeg_df["score"] == 2).astype(int)
@@ -112,6 +124,9 @@ class EegData:
         processed_velo_eeg_file_path = join(self.eeg_dir, file_name)
         return self._load_csv_file(processed_velo_eeg_file_path)
 
+    # BUG: velo_eeg_df is referenced below but is neither self nor a parameter — NameError at runtime.
+    # TODO: add velo_eeg_df as a parameter (or load via self.load_processed_velocity_eeg()) and
+    #       consolidate with the working brain_state_filter() function in calc_module.py.
     def brain_state_filter(self, states: list = ["awake_immobile",
                                                  "awake_mobile",
                                                  "NREM",
@@ -160,5 +175,5 @@ class EegData:
             elif state == "other":
                 conditions[state] = velo_eeg_df["other"]
             else:
-                print("Unknown state:", state)
+                logging.warning("Unknown state: %s", state)
         return pd.concat(conditions, axis=1)
