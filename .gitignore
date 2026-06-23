@@ -5,4 +5,5 @@ settings.json
 *.pyc
 *.h5
 notebooks/**/*.png
+notebooks/data_export/fluorescence_export.ipynb
 scripts/behavior_scripts/*.log
