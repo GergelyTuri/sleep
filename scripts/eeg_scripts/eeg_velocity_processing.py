@@ -15,6 +15,7 @@ still not solved.
 """
 
 import json
+import logging
 from argparse import ArgumentParser
 from os.path import dirname, join
 from pathlib import Path
@@ -22,8 +23,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.classes import eeg_class as eeg
-from src.classes import imaging_class as ic
+from src.io import eeg_io as eeg
+from src.io import imaging_io as ic
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 def resample_categorical(data: pd.Series, new_length: int) -> pd.Series:
@@ -52,7 +55,7 @@ def main(eeg_folder_path, file_name: str = "sleep.csv"):
         eeg_data = eeg.EegData(eeg_folder_path)
         eeg_df = eeg_data.import_scored_eeg(file_name, processed=True)
     except FileNotFoundError:
-        print(f"No scored data found or the file is not named {file_name}.")
+        logging.error("No scored data found or the file is not named %s.", file_name)
         return
 
     # Attempt to load velocity data from either CSV or JSON
@@ -61,7 +64,7 @@ def main(eeg_folder_path, file_name: str = "sleep.csv"):
     for activity_file_name in activity_file_names:
         try:
             activity_file_path = join(dirname(dirname(eeg_folder_path)), "behavior", activity_file_name)
-            print(f"Attempting to load velocity data from {activity_file_path}...")
+            logging.info("Attempting to load velocity data from %s...", activity_file_path)
             if activity_file_name.endswith(".csv"):
                 velocity = pd.read_csv(activity_file_path)
             elif activity_file_name.endswith(".json"):
@@ -74,13 +77,13 @@ def main(eeg_folder_path, file_name: str = "sleep.csv"):
             continue  # Try the next file name
     
     if not velocity_loaded:
-        print("No velocity data found in CSV or JSON format.")
+        logging.error("No velocity data found in CSV or JSON format.")
         return
 
     # Resample if lengths are not equal
     if len(eeg_df) != len(velocity):
-        print(
-            "The length of the two files are not equal. \n"
+        logging.warning(
+            "The length of the two files are not equal. "
             "Attempting to resample EEG data to match the length of the imaging/velocity data."
         )
         raw_eeg = eeg_data.import_scored_eeg(file_name, processed=False)
@@ -95,7 +98,7 @@ def main(eeg_folder_path, file_name: str = "sleep.csv"):
         elif metadata.get("sequence_type") == "multi plane":
             new_length = int(metadata.get("number of sequences", 0))
         else:
-            print("Unknown imaging sequence type.")
+            logging.error("Unknown imaging sequence type.")
             return
 
         # Resample the EEG data to match the new length
@@ -118,7 +121,7 @@ def main(eeg_folder_path, file_name: str = "sleep.csv"):
     output_file_path = join(eeg_folder_path, "velo_eeg.csv")
     velo_eeg_df.to_csv(output_file_path, index=False)
 
-    print("Brain state filter is done")
+    logging.info("Brain state filter is done.")
 
 if __name__ == "__main__":
     parser = ArgumentParser()

@@ -19,7 +19,7 @@ import sys
 from os import walk
 from os.path import dirname, isdir, join
 
-from src.classes.suite2p_class import Suite2p
+from src.io.suite2p_io import Suite2p
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -42,7 +42,7 @@ def add_time_avg(directory, save_as_tif=False):
         if "suite2p" in dirs:
             s2p_path = join(root, "suite2p")
             save_dir = dirname(s2p_path)
-            print(f"Processing suite2p data in: {s2p_path}")
+            logging.info("Processing suite2p data in: %s", s2p_path)
             s2p = Suite2p(s2p_path)
             time_avg_image = s2p.load_avg_image()                      
             if save_as_tif:

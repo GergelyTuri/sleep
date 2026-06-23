@@ -5,9 +5,9 @@ Script to export mobility and mobility data to JSON file.
 from argparse import ArgumentParser as AP
 from os.path import exists, join
 
-from src.classes import behavior_class as bc
-from src.classes import mouse_class as mc
-from src.classes.logging_setup import LoggingSetup  # Import the logging setup module
+from src.io import behavior_io as bc
+from src.io import mouse_io as mc
+from src.logging_setup import LoggingSetup
 
 
 def main(args):

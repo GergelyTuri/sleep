@@ -1,7 +1,7 @@
 import argparse
 
-from src.classes.mouse_class import MouseData
-from src.classes.sleep_experiment import SleepExperiment
+from src.io.mouse_io import MouseData
+from src.io.sleep_experiment import SleepExperiment
 
 
 def main():
