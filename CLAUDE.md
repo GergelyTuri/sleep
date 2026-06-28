@@ -149,6 +149,16 @@ Inside `except` blocks use `logger.exception(...)` when the traceback is useful,
 - Never call `logging.basicConfig()`, `addHandler()`, or `setLevel()` — those belong only in `logging_setup.py`.
 - Never log credentials or env-var values (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, etc.).
 
+**Convention for scripts (`scripts/`):**
+
+Scripts are entry points and configure logging themselves:
+
+```python
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+```
+
+Use `logging.*` directly (no named logger required). `print()` is fine for genuine CLI progress output, but error handling in `except` blocks should use `logging.error()` / `logging.exception()` rather than `print()`. Lazy %-style args apply here too.
+
 `src/__init__.py` installs a `NullHandler` on the `src` package so library log calls are silenced by default when no entry point has configured logging.
 
 ## Google Colab vs. Local
