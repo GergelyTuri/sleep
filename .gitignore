@@ -8,3 +8,4 @@ settings.json
 notebooks/**/*.png
 notebooks/data_export/fluorescence_export.ipynb
 scripts/behavior_scripts/*.log
+tests/behavior/*.json
