@@ -8,7 +8,7 @@ from os import makedirs
 from os.path import join, exists, isdir
 from os import listdir
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,7 +32,7 @@ class SleepExperiment:
         """
         sima_folder_path = self._construct_sima_folder_path()
         if sima_folder_path is None:
-            logging.warning(f"No .sima folder found in {self.tseries_folder}.")
+            logger.warning("No .sima folder found in %s.", self.tseries_folder)
             return
 
         if subdirectories is None:
@@ -58,11 +58,11 @@ class SleepExperiment:
         try:
             if not exists(path):
                 makedirs(path)
-                logging.info(f"Created directory: {path}")
+                logger.info("Created directory: %s", path)
             else:
-                logging.info(f"Directory already exists: {path}")
-        except OSError as error:
-            logging.error(f"Error creating directory {path}: {error}")
+                logger.info("Directory already exists: %s", path)
+        except OSError:
+            logger.exception("Error creating directory %s", path)
 
     def _construct_sima_folder_path(self) -> str:
         """

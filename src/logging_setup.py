@@ -32,5 +32,3 @@ class LoggingSetup:
         
         # Add handler to root logger
         logging.getLogger().addHandler(console_handler)
-        
-        return logging.getLogger(__name__)

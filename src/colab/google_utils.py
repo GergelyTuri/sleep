@@ -27,6 +27,8 @@ try:
 except ImportError:
     from config import GDRIVE_ROOT as _GDRIVE_ROOT
 
+logger = logging.getLogger(__name__)
+
 
 class GoogleDrive:
     """functions for interacting with Google Drive"""
@@ -103,7 +105,7 @@ class Mouse:
             return pprint(response)
 
         except HttpError as error:
-            logging.error("An error occurred: %s", error)
+            logger.error("An error occurred: %s", error)
             return 0
 
 class MouseDatabase(GoogleDrive):

@@ -12,6 +12,8 @@ import pymysql
 
 pymysql.install_as_MySQLdb()  # needed for pymysql to work with MySQLdb
 
+logger = logging.getLogger(__name__)
+
 
 class ExperimentDatabase:
     """An object to wrap MySQLdb and handle all connections to mySQL server
@@ -86,7 +88,7 @@ class ExperimentDatabase:
         cursor = self._database.cursor()
         cursor.execute(sql, args)
         if verbose:
-            logging.debug(sql)
+            logger.debug(sql)
 
         result = cursor.fetchone()
         return result
@@ -114,7 +116,7 @@ class ExperimentDatabase:
         cursor = self._database.cursor()
         cursor.execute(sql, args)
         if verbose:
-            logging.debug(sql)
+            logger.debug(sql)
 
         result = cursor.fetchall()
         return result
@@ -151,7 +153,7 @@ class ExperimentDatabase:
             return False
         else:
             if verbose:
-                logging.debug(sql)
+                logger.debug(sql)
             self._database.commit()
         return True
 
@@ -171,7 +173,7 @@ def add_experiment_to_database(filename, trial_id=None, overwrite=False):
         entry is already associated with this behavior data file
     """
     if not overwrite and fetch_trial_id(behavior_file=filename) is not None:
-        logging.info("trial %s already loaded", filename)
+        logger.info("trial %s already loaded", filename)
         return fetch_trial_id(behavior_file=filename)
 
     # get trial info from pickled behavior file
@@ -196,7 +198,7 @@ def add_experiment_to_database(filename, trial_id=None, overwrite=False):
     else:
         delete_all_trial_attrs(trial_id)
 
-    logging.info("loading trial %s: %s", trial_id, filename)
+    logger.info("loading trial %s: %s", trial_id, filename)
 
     for key in filter(
         lambda k: k not in ["mouse", "start_time", "stop_time", "experiment_group"],
@@ -280,9 +282,9 @@ def read_mouse_weights(mouse_name, limit=10):
         verbose=False,
     )
 
-    logging.info("Recent records for mouse %s", mouse_name)
+    logger.info("Recent records for mouse %s", mouse_name)
     for w in weights:
-        logging.info("%s\t%s", w['date'], w['weight'])
+        logger.info("%s\t%s", w['date'], w['weight'])
 
     average = db.select(
         """
@@ -295,7 +297,7 @@ def read_mouse_weights(mouse_name, limit=10):
         args=[mouse_name],
         verbose=False,
     )
-    logging.info("average weight: %s", list(average.values())[0])
+    logger.info("average weight: %s", list(average.values())[0])
 
 
 def insert_mouse_weight(mouse_name, weight, date=None):

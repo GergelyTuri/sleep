@@ -7,6 +7,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
 from . import filters
 from src.io.suite2p_io import Suite2p
 
@@ -138,7 +140,7 @@ class SlowTrendMixin:
         if window is None:
             return pd.DataFrame(np.zeros(signal.shape))
         else:
-            logging.info("Calculating slow trend")
+            logger.info("Calculating slow trend")
             if not isinstance(signal, pd.DataFrame):
                 signal = pd.DataFrame(signal)
             self.slow_trend = signal.rolling(

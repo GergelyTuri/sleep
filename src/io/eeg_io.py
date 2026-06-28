@@ -11,6 +11,8 @@ from typing import Union
 
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
 try:
     from src.config import KNOWN_EEG_CODES as _KNOWN_EEG_CODES
 except ImportError:
@@ -95,9 +97,10 @@ class EegData:
             eeg_df["score"] = eeg_df["score"].astype(int)
             unknown_codes = set(eeg_df["score"].unique()) - _KNOWN_EEG_CODES
             if unknown_codes:
-                logging.warning(
-                    f"{eeg_file}: unrecognized EEG score codes {sorted(unknown_codes)}. "
-                    f"Rows with these codes will have all brain-state columns set to 0."
+                logger.warning(
+                    "%s: unrecognized EEG score codes %s. "
+                    "Rows with these codes will have all brain-state columns set to 0.",
+                    eeg_file, sorted(unknown_codes),
                 )
             eeg_df["awake"] = (eeg_df["score"] == 0).astype(int)
             eeg_df["NREM"] = (eeg_df["score"] == 1).astype(int)
@@ -175,5 +178,5 @@ class EegData:
             elif state == "other":
                 conditions[state] = velo_eeg_df["other"]
             else:
-                logging.warning("Unknown state: %s", state)
+                logger.warning("Unknown state: %s", state)
         return pd.concat(conditions, axis=1)

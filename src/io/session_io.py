@@ -20,6 +20,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class SessionData:
@@ -77,7 +79,7 @@ def load_session(
         try:
             session.eeg = EegData(eeg_dir).import_scored_eeg(eeg_file)
         except FileNotFoundError:
-            logging.warning("EEG file not found in %s", eeg_dir)
+            logger.warning("EEG file not found in %s", eeg_dir)
 
     # --- Behavior ------------------------------------------------------------
     behavior_dir = sima_folder / "behavior"
@@ -88,7 +90,7 @@ def load_session(
             session.velocity = bd.load_processed_velocity(velocity_file)
             session.mobility = bd.define_mobility(session.velocity)
         except (FileNotFoundError, ValueError) as exc:
-            logging.warning("Could not load behavior data: %s", exc)
+            logger.warning("Could not load behavior data: %s", exc)
 
     # --- Suite2p + dF/F ------------------------------------------------------
     if s2p_folder is not None:
@@ -100,6 +102,6 @@ def load_session(
             strategy = dfof_strategy if dfof_strategy is not None else JiaDFOF()
             session.dfof = strategy.calculate(signal=signal)
         except Exception as exc:
-            logging.warning("Could not compute dF/F: %s", exc)
+            logger.warning("Could not compute dF/F: %s", exc)
 
     return session

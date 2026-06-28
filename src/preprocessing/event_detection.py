@@ -1,13 +1,16 @@
 import logging
 import os
 import json
+from typing import Iterator, Tuple, List
+
 import numpy as np
+import numpy.ma as ma
 import pandas as pd
 import plotly.graph_objects as go
-import numpy.ma as ma
-from scipy.signal import savgol_filter, medfilt
 from scipy.ndimage import gaussian_filter1d
-from typing import Iterator, Tuple, List
+from scipy.signal import savgol_filter, medfilt
+
+logger = logging.getLogger(__name__)
 
 class Denoiser:
     """
@@ -203,25 +206,25 @@ class EventDetection:
         Returns:
             Tuple[List[List[Tuple]], np.ndarray, np.ndarray]: (final transients, final noise levels, denoised signals).
         """
-        logging.info("Step 0: Applying denoising...")
+        logger.info("Step 0: Applying denoising...")
         dfof_denoised = self.apply_denoising(dfof)
 
-        logging.info("Step 1: Initial noise estimation...")
+        logger.info("Step 1: Initial noise estimation...")
         initial_noise = self.estimate_noise(dfof_denoised)
 
-        logging.info("Step 2: Defining thresholds...")
+        logger.info("Step 2: Defining thresholds...")
         thresholds = np.full((self.nSigmaBins, 1), self.MIN_DURATION)
 
-        logging.info("Step 3: Initial transient detection...")
+        logger.info("Step 3: Initial transient detection...")
         initial_transients = self.identify_transients(dfof_denoised, frame_period, thresholds, initial_noise)
 
-        logging.info("Step 4: Final noise estimation excluding detected transients...")
+        logger.info("Step 4: Final noise estimation excluding detected transients...")
         final_noise = self.estimate_noise(dfof_denoised, transients=initial_transients)
 
-        logging.info("Step 5: Final transient detection...")
+        logger.info("Step 5: Final transient detection...")
         final_transients = self.identify_transients(dfof_denoised, frame_period, thresholds, final_noise)
 
-        logging.info("Transient detection completed.")
+        logger.info("Transient detection completed.")
         return final_transients, final_noise, dfof_denoised
 
     def plot_raw_and_denoised(self, raw_signals: np.ndarray, denoised_signals: np.ndarray, cell_index: int = 0, save_path: str = None):
@@ -442,4 +445,4 @@ class EventDetection:
         """
         df = self.transients_to_dataframe(transients)  
         df.to_csv(file_name, index=False)
-        logging.info("Transients exported to %s.", file_name)
+        logger.info("Transients exported to %s.", file_name)

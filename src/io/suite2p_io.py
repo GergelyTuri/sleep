@@ -32,6 +32,8 @@ from PIL import Image
 COMBINED_DIR_NAME = "combined"
 PLANE0_DIR_NAME = "plane0"
 
+logger = logging.getLogger(__name__)
+
 
 class DirectoryNotFoundError(Exception):
     """Exception raised for errors in the directory path."""
@@ -230,7 +232,7 @@ class Suite2p:
         """
         ops_path = join(self.s2p_folder, "ops1.npy")
         if not exists(ops_path):
-            logging.warning("File not found: %s", ops_path)
+            logger.warning("File not found: %s", ops_path)
             return None
 
         ops_array = np.load(ops_path, allow_pickle=True)
@@ -316,9 +318,9 @@ class Suite2p:
             if not exists(full_save_path):
                 try:
                     fig.savefig(full_save_path)
-                    logging.info("Saved plot to %s", full_save_path)
-                except Exception as e:
-                    logging.error("Error saving plot to %s: %s", full_save_path, e)
+                    logger.info("Saved plot to %s", full_save_path)
+                except Exception:
+                    logger.exception("Error saving plot to %s", full_save_path)
                 finally:
                     plt.close(fig)
             else:
@@ -329,9 +331,9 @@ class Suite2p:
                 full_save_path = join(save_path, filename)
                 try:
                     fig.savefig(full_save_path)
-                    logging.info("Saved new plot to %s", full_save_path)
-                except Exception as e:
-                    logging.error("Error saving new plot to %s: %s", full_save_path, e)
+                    logger.info("Saved new plot to %s", full_save_path)
+                except Exception:
+                    logger.exception("Error saving new plot to %s", full_save_path)
                 finally:
                     plt.close(fig)
         else:
@@ -373,4 +375,4 @@ class Suite2p:
         else:
             tif_images[0].save(save_path)
 
-        logging.info("Saved time-averaged image(s) to %s", save_path)
+        logger.info("Saved time-averaged image(s) to %s", save_path)

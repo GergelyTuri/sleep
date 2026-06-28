@@ -10,6 +10,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
 import scipy.stats as stats
 from collections import Counter
 
@@ -95,7 +97,7 @@ def brain_state_filter(velo_eeg_df: pd.DataFrame, states:list) -> tuple:
     l1 = ['NREM', 'REM', 'awake']
     filters = {}
     if Counter(states) == Counter(l1):
-        logging.info("Making filters for %s and locomotion", l1)
+        logger.info("Making filters for %s and locomotion", l1)
         awake = ((velo_eeg_df['NREM']==False) &
              (velo_eeg_df['REM']==False) &
              (velo_eeg_df['filtered velo']<IMMOBILITY_VELOCITY_THRESHOLD))
@@ -111,7 +113,7 @@ def brain_state_filter(velo_eeg_df: pd.DataFrame, states:list) -> tuple:
                   'REM':rem,
                   'locomotion':locomotion}        
     else:
-        logging.info("no REM, making filters for NREM, awake and locomotion")
+        logger.info("no REM, making filters for NREM, awake and locomotion")
         awake = ((velo_eeg_df['NREM']==False) &
              (velo_eeg_df['REM']==False) &
              (velo_eeg_df['filtered velo']<IMMOBILITY_VELOCITY_THRESHOLD))
@@ -170,7 +172,7 @@ def data_loader(data_dir: str, data_type: str, mouse_id: str,
     # loading stat results for significantly up and downregulated cells
     # during NREM
     sig_cells = pd.read_csv(Path(data_loc).joinpath('Significant_paired_DABEST_NREM.csv'))
-    logging.info("number of cells in this recording: %d", len(sig_cells))
+    logger.info("number of cells in this recording: %d", len(sig_cells))
 
     # loadig EEG and behavior data
     eeg_velocity = pd.read_csv(Path(data_loc).joinpath('velo_eeg.csv'))

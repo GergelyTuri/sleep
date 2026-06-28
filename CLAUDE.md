@@ -124,6 +124,33 @@ python scripts/behavior_scripts/process_json_behavior_data.py -f file.tdml --sql
 
 The `lab3` database dependency is imported lazily inside `loadSql` — the script runs without `lab3` installed as long as `--sql` is not passed.
 
+## Logging
+
+`src/logging_setup.py` is the sole place that configures handlers. Call it from entry points (scripts, notebooks); never from library code.
+
+**Convention for every `src/` module:**
+
+```python
+import logging
+# ... other imports ...
+logger = logging.getLogger(__name__)   # module-level, after all imports
+```
+
+All log calls use `logger.*`, never `logging.*` directly. Use lazy %-style args:
+
+```python
+logger.warning("No .sima folder found in %s", path)   # correct
+logger.warning(f"No .sima folder found in {path}")    # wrong — always evaluated
+```
+
+Inside `except` blocks use `logger.exception(...)` when the traceback is useful, `logger.error(...)` otherwise.
+
+**Hard rules for library modules (`src/`):**
+- Never call `logging.basicConfig()`, `addHandler()`, or `setLevel()` — those belong only in `logging_setup.py`.
+- Never log credentials or env-var values (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, etc.).
+
+`src/__init__.py` installs a `NullHandler` on the `src` package so library log calls are silenced by default when no entry point has configured logging.
+
 ## Google Colab vs. Local
 
 `src/colab/google_utils.py` and `src/colab/google_drive.py` import `google.colab` and will fail locally — both files guard this with a `try/except ImportError`. Everything else in `src/` is usable in either environment.
