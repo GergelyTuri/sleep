@@ -1,6 +1,0 @@
-README.md
-setup.py
-sleep.egg-info/PKG-INFO
-sleep.egg-info/SOURCES.txt
-sleep.egg-info/dependency_links.txt
-sleep.egg-info/top_level.txt
