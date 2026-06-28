@@ -1,4 +1,5 @@
 import argparse
+import logging
 
 from src.io.mouse_io import MouseData
 from src.io.sleep_experiment import SleepExperiment
@@ -26,4 +27,5 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     main()

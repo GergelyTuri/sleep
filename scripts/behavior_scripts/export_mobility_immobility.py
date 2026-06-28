@@ -2,12 +2,12 @@
 Script to export mobility and mobility data to JSON file.
 """
 
+import logging
 from argparse import ArgumentParser as AP
 from os.path import exists, join
 
 from src.io import behavior_io as bc
 from src.io import mouse_io as mc
-from src.logging_setup import LoggingSetup
 
 
 def main(args):
@@ -29,31 +29,29 @@ def main(args):
         
         # Skip folder if JSON file exists and overwrite flag is not set
         if exists(output_path) and not args.overwrite:
-            logger.info(f"Skipping folder {behavior_folder} as file already exists.")
+            logging.info("Skipping folder %s as file already exists.", behavior_folder)
             continue
 
         try:
-            logger.info(f"Processing folder: {behavior_folder}")
-            
+            logging.info("Processing folder: %s", behavior_folder)
+
             # Process velocity and define mobility
             processed_velo = behavior.load_processed_velocity()
             mobility = behavior.define_mobility(velocity=processed_velo)
-            
+
             # Save mobility data to JSON
             mobility.to_json(output_path, orient="records", indent=4)
-            logger.info(f"Successfully processed and saved data for folder: {behavior_folder}")
-        
+            logging.info("Successfully processed and saved data for folder: %s", behavior_folder)
+
         except FileNotFoundError:
-            logger.warning(f"Folder {behavior_folder} not found.")
-        
-        except Exception as e:
-            logger.error(f"Failed to process folder {behavior_folder}. Error: {e}", exc_info=True)
+            logging.warning("Folder %s not found.", behavior_folder)
+
+        except Exception:
+            logging.exception("Failed to process folder %s", behavior_folder)
             # Continue with the next folder without stopping the script
 
 if __name__ == "__main__":
-    # Configure the logger using the LoggingSetup class
-    logger = LoggingSetup.configure_logger("export_mobility_immobility.log")
-
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     # Parsing command-line arguments
     parser = AP(description="Export mobility and immobility data to JSON files (mobility = 1).")
     parser.add_argument("mouse_ID", help="the ID of the mouse to analyze.")

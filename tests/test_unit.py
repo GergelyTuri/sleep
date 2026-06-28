@@ -395,9 +395,9 @@ class TestProcessJsonBehaviorData:
         mod.main(["-f", str(tdml)])
         assert called == []
 
-    def test_main_trial_id_without_sql_prints_warning(self, mod, tdml, capsys):
+    def test_main_trial_id_without_sql_logs_warning(self, mod, tdml, caplog):
         mod.main(["-f", str(tdml), "--trial_id", "42"])
-        assert "warning" in capsys.readouterr().out.lower()
+        assert any("--trial_id" in msg for msg in caplog.messages)
 
 
 # ---------------------------------------------------------------------------

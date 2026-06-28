@@ -26,8 +26,6 @@ import pandas as pd
 from src.io import eeg_io as eeg
 from src.io import imaging_io as ic
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
 
 def resample_categorical(data: pd.Series, new_length: int) -> pd.Series:
     """
@@ -124,6 +122,7 @@ def main(eeg_folder_path, file_name: str = "sleep.csv"):
     logging.info("Brain state filter is done.")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     parser = ArgumentParser()
     parser.add_argument(
         "eeg_folder",  

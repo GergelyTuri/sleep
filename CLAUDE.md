@@ -33,7 +33,7 @@ pytest tests/test_unit.py -v
 ```
 src/
   config.py              # Centralized analysis parameters (all numeric defaults)
-  logging_setup.py       # Logger configuration helper
+  logging_setup.py       # Empty stub — handlers configured per-script via logging.basicConfig()
   io/                    # Data loading — one file per data source
     suite2p_io.py        # Suite2p class (loads F.npy, Fneu.npy, spks.npy, iscell.npy)
     imaging_io.py        # Imaging class (reads imaging_metadata.json)
@@ -63,8 +63,14 @@ src/
     google_drive.py
 notebooks/               # Analysis organized by topic
 scripts/
+  add_project_subfolders.py        # Creates behavior/eeg/plots subfolders for a mouse's .sima dirs
+  add_time_avg.py                  # Adds time-averaged image to suite2p data
   behavior_scripts/
+    export_mobility_immobility.py  # Exports mobility/immobility epochs → JSON
     process_json_behavior_data.py  # Parses .tdml/.vr files → .json (default) or .pkl
+  eeg_scripts/
+    eeg_velocity_processing.py     # Merges scored EEG with velocity data → velo_eeg.csv
+    process_matlab_files.py        # Extracts sleep state scores from .mat files → CSV
 tests/
   behavior/              # Sample .tdml files used by pytest integration tests
   test_unit.py           # pytest suite (includes TestProcessJsonBehaviorData)
@@ -104,7 +110,11 @@ tests/
       combined/ or plane0/       # F.npy, Fneu.npy, spks.npy, iscell.npy, stat.npy
 ```
 
-## Behavior Processing Script
+## Scripts
+
+All scripts configure logging via `logging.basicConfig()` inside their `if __name__ == "__main__":` guard (or at the top of `main()` for scripts imported by tests). Run any script with `--help` for full argument documentation.
+
+### process_json_behavior_data.py
 
 `scripts/behavior_scripts/process_json_behavior_data.py` converts `.tdml` or `.vr` BehaviorMate files into structured output. By default it writes a `.json` file in the same directory as the input file.
 
@@ -124,9 +134,15 @@ python scripts/behavior_scripts/process_json_behavior_data.py -f file.tdml --sql
 
 The `lab3` database dependency is imported lazily inside `loadSql` — the script runs without `lab3` installed as long as `--sql` is not passed.
 
-## Logging
+### Other scripts
 
-`src/logging_setup.py` is the sole place that configures handlers. Call it from entry points (scripts, notebooks); never from library code.
+- **`add_project_subfolders.py`** — takes a `mouse_id` and creates the standard `behavior/`, `eeg/`, `plots/` subfolder layout inside every `.sima` directory for that mouse.
+- **`add_time_avg.py`** — walks a directory tree, finds `suite2p/` folders, and saves a time-averaged image (PNG by default; `--tif` for multipage TIFF).
+- **`behavior_scripts/export_mobility_immobility.py`** — takes a `mouse_id`, loads velocity data for each behavior folder, and writes `mobility_immobility.json` alongside the velocity file.
+- **`eeg_scripts/eeg_velocity_processing.py`** — merges a scored EEG CSV with velocity data, resampling if lengths differ, and writes `velo_eeg.csv` to the EEG folder.
+- **`eeg_scripts/process_matlab_files.py`** — extracts the `sleepData/state` array from a MATLAB `.mat` file and writes it as `sleep.csv`.
+
+## Logging
 
 **Convention for every `src/` module:**
 
@@ -146,7 +162,7 @@ logger.warning(f"No .sima folder found in {path}")    # wrong — always evaluat
 Inside `except` blocks use `logger.exception(...)` when the traceback is useful, `logger.error(...)` otherwise.
 
 **Hard rules for library modules (`src/`):**
-- Never call `logging.basicConfig()`, `addHandler()`, or `setLevel()` — those belong only in `logging_setup.py`.
+- Never call `logging.basicConfig()`, `addHandler()`, or `setLevel()` — those belong in entry points (scripts, notebooks), not library code.
 - Never log credentials or env-var values (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, etc.).
 
 **Convention for scripts (`scripts/`):**

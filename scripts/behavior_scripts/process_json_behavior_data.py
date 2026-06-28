@@ -8,6 +8,7 @@
 
 import argparse
 import json
+import logging
 import os.path
 import sys
 import time
@@ -137,6 +138,7 @@ def main(argv):
     Returns:
         None
     """
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     argParser = argparse.ArgumentParser(description="Converts behavior JSON files"\
                                             " to `.pkl` and adds them to the database. "\
                             "Compatible with older version of BehaviorMate (0.0.6b)")
@@ -251,7 +253,7 @@ def main(argv):
             else:
                 behavior_address = str(settings['controllers']['behavior_controller']['ip']) + ':' + \
                 str(settings['controllers']['behavior_controller']['send_port'])
-            print("received messages from send_port for file: " + fname)
+            logging.warning("received messages from send_port for file: %s", fname)
 
         experiment_info = None
         starts = {}
@@ -531,7 +533,7 @@ def main(argv):
             trial_info['experiment_group'] = args.group
 
         if args.trial_id is not None and not args.sql:
-            print('warning: --trial_id has no effect without --sql, skipping database load')
+            logging.warning("--trial_id has no effect without --sql, skipping database load")
 
         if args.sql:
             if trial_info['experiment_group'] is None:

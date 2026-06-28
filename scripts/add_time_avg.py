@@ -21,7 +21,6 @@ from os.path import dirname, isdir, join
 
 from src.io.suite2p_io import Suite2p
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def add_time_avg(directory, save_as_tif=False):
     """
@@ -57,6 +56,7 @@ def add_time_avg(directory, save_as_tif=False):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     argparser = arg.ArgumentParser(description="Add time average to suite2p data")
     argparser.add_argument(
         "-d",

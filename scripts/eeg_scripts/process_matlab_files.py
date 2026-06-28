@@ -12,8 +12,6 @@ from os.path import dirname, isfile, join
 import h5py
 import numpy as np
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
 
 def main(sima_folder: str, mat_file: str, source_eeg_folder: str):
     try:
@@ -56,6 +54,7 @@ def main(sima_folder: str, mat_file: str, source_eeg_folder: str):
         logging.exception("An unexpected error occurred")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     # Parsing command-line arguments
     arg_parser = ap.ArgumentParser(description="Extract scored data from YP's matlab files.")
     arg_parser.add_argument("sima_folder", type=str, help="The path to the sima folder.")
