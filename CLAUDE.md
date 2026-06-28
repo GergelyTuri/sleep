@@ -62,8 +62,12 @@ src/
     google_utils.py
     google_drive.py
 notebooks/               # Analysis organized by topic
-scripts/                 # One-off processing scripts
-tests/                   # Notebook-based tests + tests/test_unit.py (pytest)
+scripts/
+  behavior_scripts/
+    process_json_behavior_data.py  # Parses .tdml/.vr files → .json (default) or .pkl
+tests/
+  behavior/              # Sample .tdml files used by pytest integration tests
+  test_unit.py           # pytest suite (includes TestProcessJsonBehaviorData)
 ```
 
 ### Key classes and their import paths
@@ -99,6 +103,26 @@ tests/                   # Notebook-based tests + tests/test_unit.py (pytest)
     suite2p.../
       combined/ or plane0/       # F.npy, Fneu.npy, spks.npy, iscell.npy, stat.npy
 ```
+
+## Behavior Processing Script
+
+`scripts/behavior_scripts/process_json_behavior_data.py` converts `.tdml` or `.vr` BehaviorMate files into structured output. By default it writes a `.json` file in the same directory as the input file.
+
+```bash
+# single file
+python scripts/behavior_scripts/process_json_behavior_data.py -f path/to/file.tdml
+
+# entire directory tree (skips files with an existing .json; use -o to overwrite)
+python scripts/behavior_scripts/process_json_behavior_data.py -d path/to/dir
+
+# write .pkl instead of .json
+python scripts/behavior_scripts/process_json_behavior_data.py -f file.tdml --file_type pkl
+
+# also load into the SQL database (requires lab3 and DB env vars)
+python scripts/behavior_scripts/process_json_behavior_data.py -f file.tdml --sql -g my_group
+```
+
+The `lab3` database dependency is imported lazily inside `loadSql` — the script runs without `lab3` installed as long as `--sql` is not passed.
 
 ## Google Colab vs. Local
 
