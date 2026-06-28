@@ -5,11 +5,14 @@ date: 11/10/2023
 """
 
 import argparse as ap
+import logging
 import os
 from os.path import dirname, isfile, join
 
 import h5py
 import numpy as np
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 def main(sima_folder: str, mat_file: str, source_eeg_folder: str):
@@ -38,19 +41,19 @@ def main(sima_folder: str, mat_file: str, source_eeg_folder: str):
 
         # Saving the data to CSV
         np.savetxt(csv_path, sleep_data, delimiter=",", fmt="%d")
-        print(f"Data saved to {csv_path}")
+        logging.info("Data saved to %s", csv_path)
 
     except FileNotFoundError as fnf_error:
-        print(f"Error: {fnf_error}")
+        logging.error("%s", fnf_error)
 
     except KeyError as key_error:
-        print(f"Error: {key_error}")
+        logging.error("%s", key_error)
 
     except OSError as os_error:
-        print(f"OS Error while accessing files: {os_error}")
+        logging.error("OS Error while accessing files: %s", os_error)
 
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+    except Exception:
+        logging.exception("An unexpected error occurred")
 
 if __name__ == "__main__":
     # Parsing command-line arguments

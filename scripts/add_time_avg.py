@@ -35,7 +35,7 @@ def add_time_avg(directory, save_as_tif=False):
         None
     """
     if not isdir(directory):
-        logging.error(f"Error: The directory '{directory}' does not exist.")
+        logging.error("Error: The directory '%s' does not exist.", directory)
         sys.exit(1)
 
     for root, dirs, files in walk(directory):
@@ -51,9 +51,9 @@ def add_time_avg(directory, save_as_tif=False):
             else:
                 result = s2p.plot_time_avg_image(time_avg_image, save_path=save_dir)
                 if result is None:
-                    logging.warning(f"No time-averaged image was saved in: {save_dir}")
+                    logging.warning("No time-averaged image was saved in: %s", save_dir)
                 else:
-                    logging.info(f"Time-averaged image saved in: {save_dir}")
+                    logging.info("Time-averaged image saved in: %s", save_dir)
 
 
 if __name__ == "__main__":
