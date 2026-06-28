@@ -8,7 +8,10 @@ Tests that require data on disk are marked skip. All other tests use only
 synthetic or in-memory data and should pass without any data files.
 """
 
+import importlib.util
 import json
+import pickle
+import shutil
 import warnings
 from pathlib import Path
 
@@ -287,6 +290,114 @@ class TestProjectFilterSql:
         from src.db.database import _project_filter_sql
         with pytest.raises(ValueError, match="invalid characters"):
             _project_filter_sql("name; DROP TABLE")
+
+
+# ---------------------------------------------------------------------------
+# scripts/behavior_scripts/process_json_behavior_data.py
+# ---------------------------------------------------------------------------
+
+class TestProcessJsonBehaviorData:
+    """Tests for the TDML → JSON processing script."""
+
+    _TDML = Path(__file__).parent / "behavior/140302_1_20231211123734.tdml"
+
+    @pytest.fixture
+    def mod(self):
+        """Load the script as a module without executing __main__."""
+        spec = importlib.util.spec_from_file_location(
+            "process_json_behavior_data",
+            Path(__file__).parent.parent
+            / "scripts/behavior_scripts/process_json_behavior_data.py",
+        )
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return m
+
+    @pytest.fixture
+    def tdml(self, tmp_path):
+        """Copy the test .tdml into a temp dir so output files don't pollute the repo."""
+        dst = tmp_path / self._TDML.name
+        shutil.copy(self._TDML, dst)
+        return dst
+
+    # --- numpy_to_list ---
+
+    def test_numpy_to_list_array(self, mod):
+        result = mod.numpy_to_list(np.array([1.0, 2.0, 3.0]))
+        assert isinstance(result, list)
+        assert result == [1.0, 2.0, 3.0]
+
+    def test_numpy_to_list_dict_with_array_values(self, mod):
+        result = mod.numpy_to_list({"a": np.array([1, 2]), "b": 3})
+        assert isinstance(result["a"], list)
+        assert result["b"] == 3
+
+    def test_numpy_to_list_nested(self, mod):
+        result = mod.numpy_to_list([np.array([1, 2]), [np.array([3, 4])]])
+        assert result == [[1, 2], [[3, 4]]]
+
+    def test_numpy_to_list_scalar_passthrough(self, mod):
+        assert mod.numpy_to_list(42) == 42
+        assert mod.numpy_to_list("hello") == "hello"
+
+    # --- findFiles ---
+
+    def test_find_files_finds_tdml(self, mod, tmp_path):
+        (tmp_path / "run.tdml").write_text("")
+        found = list(mod.findFiles(str(tmp_path)))
+        assert any("run.tdml" in f for f in found)
+
+    def test_find_files_finds_vr(self, mod, tmp_path):
+        (tmp_path / "run.vr").write_text("")
+        found = list(mod.findFiles(str(tmp_path)))
+        assert any("run.vr" in f for f in found)
+
+    def test_find_files_skips_when_json_exists(self, mod, tmp_path):
+        (tmp_path / "run.tdml").write_text("")
+        (tmp_path / "run.json").write_text("{}")
+        found = list(mod.findFiles(str(tmp_path), overwrite=False))
+        assert found == []
+
+    def test_find_files_overwrite_ignores_existing_json(self, mod, tmp_path):
+        (tmp_path / "run.tdml").write_text("")
+        (tmp_path / "run.json").write_text("{}")
+        found = list(mod.findFiles(str(tmp_path), overwrite=True))
+        assert len(found) == 1
+
+    # --- main: output format ---
+
+    def test_main_writes_json_next_to_tdml(self, mod, tdml):
+        mod.main(["-f", str(tdml)])
+        assert tdml.with_suffix(".json").exists()
+
+    def test_main_json_has_expected_keys(self, mod, tdml):
+        mod.main(["-f", str(tdml)])
+        data = json.loads(tdml.with_suffix(".json").read_text())
+        for key in ("trackLength", "recordingDuration", "treadmillPosition"):
+            assert key in data, f"missing key: {key}"
+
+    def test_main_does_not_write_pkl_by_default(self, mod, tdml):
+        mod.main(["-f", str(tdml)])
+        assert not tdml.with_suffix(".pkl").exists()
+
+    def test_main_file_type_pkl_writes_pkl(self, mod, tdml):
+        mod.main(["-f", str(tdml), "--file_type", "pkl"])
+        pkl = tdml.with_suffix(".pkl")
+        assert pkl.exists()
+        data = pickle.loads(pkl.read_bytes())
+        assert "treadmillPosition" in data
+
+    # --- main: database opt-in ---
+
+    def test_main_does_not_call_load_sql_by_default(self, mod, tdml, monkeypatch):
+        called = []
+        monkeypatch.setattr(mod, "loadSql", lambda *a, **kw: called.append(True))
+        mod.main(["-f", str(tdml)])
+        assert called == []
+
+    def test_main_trial_id_without_sql_prints_warning(self, mod, tdml, capsys):
+        mod.main(["-f", str(tdml), "--trial_id", "42"])
+        assert "warning" in capsys.readouterr().out.lower()
 
 
 # ---------------------------------------------------------------------------
