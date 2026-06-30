@@ -62,6 +62,8 @@ src/
     google_utils.py
     google_drive.py
 notebooks/               # Analysis organized by topic
+  behavior/
+    process_velocity.ipynb   # Derives velocity from treadmillPosition, saves [[time_s, vel], ...]
 scripts/
   add_project_subfolders.py        # Creates behavior/eeg/plots subfolders for a mouse's .sima dirs
   add_time_avg.py                  # Adds time-averaged image to suite2p data
@@ -89,7 +91,7 @@ tests/
 - **`Imaging`** (`src.io.imaging_io`) — reads `imaging_metadata.json`; handles both single-plane and multi-plane frame rate calculations.
 
 - **`BehaviorData`** (`src.io.behavior_io`) — loads and resamples velocity data; computes mobility/immobility epochs. Key methods:
-  - `load_processed_velocity(file_name)` → `np.ndarray` — reads `filtered_velocity.json`. After the preprocessing rework the file will contain `[[time_s, velocity], ...]` pairs (shape `(N, 2)`); the current stale format is a flat value list.
+  - `load_processed_velocity(file_name)` → `np.ndarray` — reads `filtered_velocity.json`, which contains `[[time_s, velocity], ...]` pairs (shape `(N, 2)`) as written by `notebooks/behavior/process_velocity.ipynb`.
   - `resample_to_imaging(velocity_ts, imaging_fps, n_frames)` → `np.ndarray shape (n_frames,)` — resamples an event-driven velocity time series onto the imaging frame grid. Replaces `lab3.BehaviorExperiment.format_behavior_data(sampling_interval=frame_period)`. `velocity_ts` must be shape `(N, 2)` with column 0 = seconds and strictly monotonically increasing timestamps. Returns raw resampled velocity (no smoothing); apply Gaussian filter after if needed. Raises `ValueError` for short behavior recordings.
   - `define_mobility(velocity, ...)` → `pd.Series` of booleans — rolling-window mobility classification. Reads imaging fps from `imaging_metadata.json` at the TSeries root (two levels above `behavior_dir`).
 
@@ -136,6 +138,29 @@ python scripts/behavior_scripts/process_json_behavior_data.py -f file.tdml --sql
 ```
 
 The `lab3` database dependency is imported lazily inside `loadSql` — the script runs without `lab3` installed as long as `--sql` is not passed.
+
+### Behavior preprocessing pipeline
+
+Raw BehaviorMate recordings flow through three steps before analysis:
+
+```
+raw .tdml  (event-driven, timestamped)
+  → scripts/behavior_scripts/process_json_behavior_data.py
+      writes <session>.json alongside the .tdml
+      key output key: "treadmillPosition": [[time_s, norm_pos], ...]
+
+  → notebooks/behavior/process_velocity.ipynb
+      derives velocity = Δnorm_pos / Δtime_s from treadmillPosition
+      optional: drop outlier events by index range
+      writes <TSeries>.sima/behavior/filtered_velocity.json: [[time_s, velocity], ...]
+      Gaussian smoothing is shown for inspection only — NOT saved
+
+  → BehaviorData.resample_to_imaging(velocity_ts, imaging_fps, n_frames)
+      linear interpolation onto uniform imaging-rate grid (np.interp)
+      called automatically by load_session(); apply Gaussian filter after
+```
+
+The notebook does **not** Gaussian-filter before saving. Smoothing (`scipy.ndimage.gaussian_filter`) belongs in the analysis notebook, after resampling to the imaging grid where σ in samples has a consistent physical meaning.
 
 ### Other scripts
 
