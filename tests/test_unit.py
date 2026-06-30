@@ -296,7 +296,7 @@ class TestProjectFilterSql:
 # scripts/behavior_scripts/process_tdml_behavior_data.py
 # ---------------------------------------------------------------------------
 
-class TestProcessJsonBehaviorData:
+class TestProcessTdmlBehaviorData:
     """Tests for the TDML → JSON processing script."""
 
     _TDML = Path(__file__).parent / "behavior/140302_1_20231211123734.tdml"
