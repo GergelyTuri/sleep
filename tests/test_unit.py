@@ -401,6 +401,176 @@ class TestProcessJsonBehaviorData:
 
 
 # ---------------------------------------------------------------------------
+# io/behavior_io.py — BehaviorData.resample_to_imaging
+# ---------------------------------------------------------------------------
+
+class TestResampleToImaging:
+    """Tests for BehaviorData.resample_to_imaging().
+
+    All tests use synthetic or sample-file-derived data; no live data required.
+    The sample JSON is the output of process_json_behavior_data.py on the
+    accompanying .tdml fixture.
+    """
+
+    _SAMPLE_JSON = Path(__file__).parent / "behavior/140302_1_20231211123734.json"
+
+    @pytest.fixture
+    def bd(self, tmp_path):
+        from src.io.behavior_io import BehaviorData
+        return BehaviorData(tmp_path)
+
+    @pytest.fixture
+    def sample_velocity_ts(self):
+        """Derive velocity_ts [[time_s, velocity], ...] from sample treadmillPosition.
+
+        Velocity at each event = Δnormalized_position / Δtime_s.
+        Timestamps are the start of each inter-event interval.
+        This mirrors what the reworked process_velocity notebook will write.
+        """
+        with open(self._SAMPLE_JSON) as f:
+            tp = json.load(f)["treadmillPosition"]
+        tp = np.array(tp)
+        dt = np.diff(tp[:, 0])
+        dp = np.diff(tp[:, 1])
+        times = tp[:-1, 0]
+        velocity = dp / dt
+        return np.column_stack([times, velocity])
+
+    # --- shape and argument validation ---
+
+    def test_invalid_shape_1d_raises(self, bd):
+        with pytest.raises(ValueError, match="shape"):
+            bd.resample_to_imaging(np.ones(10), imaging_fps=15.0, n_frames=5)
+
+    def test_invalid_shape_wrong_cols_raises(self, bd):
+        with pytest.raises(ValueError, match="shape"):
+            bd.resample_to_imaging(np.ones((10, 3)), imaging_fps=15.0, n_frames=5)
+
+    def test_nonpositive_fps_raises(self, bd):
+        vts = np.column_stack([np.array([0.0, 1.0]), np.ones(2)])
+        with pytest.raises(ValueError, match="imaging_fps"):
+            bd.resample_to_imaging(vts, imaging_fps=0.0, n_frames=5)
+
+    def test_nonpositive_n_frames_raises(self, bd):
+        vts = np.column_stack([np.array([0.0, 1.0]), np.ones(2)])
+        with pytest.raises(ValueError, match="n_frames"):
+            bd.resample_to_imaging(vts, imaging_fps=15.0, n_frames=0)
+
+    # --- monotonicity guard ---
+
+    def test_non_monotonic_timestamps_raises(self, bd):
+        # t=0, 1, 0.5 (reversal) → not strictly increasing
+        t = np.array([0.0, 1.0, 0.5, 2.0])
+        vts = np.column_stack([t, np.zeros(4)])
+        with pytest.raises(ValueError, match="strictly increasing"):
+            bd.resample_to_imaging(vts, imaging_fps=1.0, n_frames=2)
+
+    def test_duplicate_timestamps_raise(self, bd):
+        # zero diff also violates strict monotonicity
+        t = np.array([0.0, 1.0, 1.0, 2.0])
+        vts = np.column_stack([t, np.zeros(4)])
+        with pytest.raises(ValueError, match="strictly increasing"):
+            bd.resample_to_imaging(vts, imaging_fps=1.0, n_frames=2)
+
+    # --- behavior shorter than imaging ---
+
+    def test_behavior_shorter_than_imaging_raises(self, bd):
+        # behavior covers 5 s; imaging needs 10 s (100 frames at 10 fps)
+        t = np.linspace(0.0, 5.0, 50)
+        vts = np.column_stack([t, np.ones(50)])
+        with pytest.raises(ValueError, match="Behavior ends"):
+            bd.resample_to_imaging(vts, imaging_fps=10.0, n_frames=100)
+
+    def test_behavior_shorter_error_names_gap(self, bd):
+        # error message should quantify the gap so callers know how bad it is
+        t = np.linspace(0.0, 5.0, 50)
+        vts = np.column_stack([t, np.ones(50)])
+        with pytest.raises(ValueError, match=r"\d+\.\d+ s"):
+            bd.resample_to_imaging(vts, imaging_fps=10.0, n_frames=100)
+
+    # --- unit correctness (known analytic values) ---
+
+    def test_linear_interpolation_values(self, bd):
+        # Two events: (0s, 5.0) and (1s, 10.0) → linear ramp
+        # fps=2 → target = [0.0, 0.5, 1.0, 1.5] s
+        # expected:       [5.0, 7.5, 10.0, 10.0]  (np.interp clamps past last)
+        vts = np.array([[0.0, 5.0], [1.0, 10.0]])
+        result = bd.resample_to_imaging(vts, imaging_fps=2.0, n_frames=4)
+        np.testing.assert_allclose(result, [5.0, 7.5, 10.0, 10.0])
+
+    def test_constant_velocity_preserved(self, bd):
+        t = np.array([0.0, 5.0, 10.0])
+        vts = np.column_stack([t, np.full(3, 3.0)])
+        result = bd.resample_to_imaging(vts, imaging_fps=1.0, n_frames=10)
+        np.testing.assert_allclose(result, np.full(10, 3.0))
+
+    # --- output length is exactly n_frames ---
+
+    def test_output_length_equals_n_frames(self, bd):
+        t = np.linspace(0.0, 100.0, 500)
+        vts = np.column_stack([t, np.random.default_rng(0).normal(size=500)])
+        result = bd.resample_to_imaging(vts, imaging_fps=10.0, n_frames=200)
+        assert result.shape == (200,)
+
+    # --- behavior span longer than imaging (normal trim, implicit) ---
+
+    def test_behavior_longer_than_imaging_no_error(self, bd, sample_velocity_ts):
+        # sample spans ~3598 s; imaging ends at ~333 s (5000 frames at 15 fps)
+        result = bd.resample_to_imaging(
+            sample_velocity_ts, imaging_fps=15.0, n_frames=5000
+        )
+        assert result.shape == (5000,)
+
+    # --- effective upsampling ---
+
+    def test_upsampling_output_length_and_values(self, bd):
+        # 6 sparse events over 10 s; 100 frames at 10 fps
+        t = np.array([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
+        v = np.array([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
+        vts = np.column_stack([t, v])
+        result = bd.resample_to_imaging(vts, imaging_fps=10.0, n_frames=100)
+        assert result.shape == (100,)
+        # frame 20 → t=2.0 s → v should be 2.0 (exact event)
+        assert result[20] == pytest.approx(2.0)
+        # frame 10 → t=1.0 s → midpoint between (0,0) and (2,2) → 1.0
+        assert result[10] == pytest.approx(1.0)
+
+    # --- effective downsampling ---
+
+    def test_downsampling_output_length_and_values(self, bd):
+        # 1000 dense events over 10 s; 20 frames at 2 fps
+        t = np.linspace(0.0, 10.0, 1000)
+        v = t.copy()  # velocity == time for easy checking
+        vts = np.column_stack([t, v])
+        result = bd.resample_to_imaging(vts, imaging_fps=2.0, n_frames=20)
+        assert result.shape == (20,)
+        # frame 0 → t=0 → v=0; frame 10 → t=5 → v=5
+        assert result[0] == pytest.approx(0.0, abs=0.01)
+        assert result[10] == pytest.approx(5.0, abs=0.01)
+
+    # --- spans roughly equal ---
+
+    def test_spans_roughly_equal(self, bd):
+        # behavior ends within one frame of last imaging frame
+        fps = 15.0
+        n_frames = 100
+        last_frame_time = (n_frames - 1) / fps  # 6.6 s
+        # behavior ends at last_frame_time + 0.5 frames (within tolerance)
+        t_end = last_frame_time + 0.5 / fps
+        t = np.array([0.0, t_end / 2, t_end])
+        vts = np.column_stack([t, np.ones(3)])
+        result = bd.resample_to_imaging(vts, imaging_fps=fps, n_frames=n_frames)
+        assert result.shape == (n_frames,)
+
+    # --- return type ---
+
+    def test_returns_ndarray(self, bd):
+        vts = np.array([[0.0, 1.0], [10.0, 2.0]])
+        result = bd.resample_to_imaging(vts, imaging_fps=1.0, n_frames=5)
+        assert isinstance(result, np.ndarray)
+
+
+# ---------------------------------------------------------------------------
 # Stubs requiring data on disk
 # ---------------------------------------------------------------------------
 

@@ -80,7 +80,7 @@ tests/
 
 - **`MouseData`** (`src.io.mouse_io`) — entry point for a mouse's data. Takes `mouse_id` and `root_folder` (env var `SLEEP_DATA_ROOT`, default `/data2/gergely/invivo_DATA/sleep`). Walks the filesystem to find TSeries, Suite2p, `.sima`, EEG, and behavior subdirectories.
 
-- **`SessionData` / `load_session()`** (`src.io.session_io`) — convenience loader: given a `.sima` folder and an optional Suite2p folder, returns a `SessionData` with `dfof`, `eeg`, `mobility`, and `velocity` already populated.
+- **`SessionData` / `load_session()`** (`src.io.session_io`) — convenience loader: given a `.sima` folder and an optional Suite2p folder, returns a `SessionData` with `dfof`, `eeg`, `mobility`, and `velocity` already populated. `velocity` is resampled to the imaging frame grid via `BehaviorData.resample_to_imaging()`; loading falls back to a warning if `imaging_metadata.json` is missing or the velocity file is in the old flat format.
 
 - **`SleepExperiment`** (`src.io.sleep_experiment`) — creates the standard subfolder layout (`behavior/`, `eeg/`, `plots/`) inside `.sima` directories.
 
@@ -88,7 +88,10 @@ tests/
 
 - **`Imaging`** (`src.io.imaging_io`) — reads `imaging_metadata.json`; handles both single-plane and multi-plane frame rate calculations.
 
-- **`BehaviorData`** (`src.io.behavior_io`) — loads `filtered_velocity.json` and computes mobility/immobility epochs. Requires `imaging_metadata.json` two levels above the behavior directory (TSeries root).
+- **`BehaviorData`** (`src.io.behavior_io`) — loads and resamples velocity data; computes mobility/immobility epochs. Key methods:
+  - `load_processed_velocity(file_name)` → `np.ndarray` — reads `filtered_velocity.json`. After the preprocessing rework the file will contain `[[time_s, velocity], ...]` pairs (shape `(N, 2)`); the current stale format is a flat value list.
+  - `resample_to_imaging(velocity_ts, imaging_fps, n_frames)` → `np.ndarray shape (n_frames,)` — resamples an event-driven velocity time series onto the imaging frame grid. Replaces `lab3.BehaviorExperiment.format_behavior_data(sampling_interval=frame_period)`. `velocity_ts` must be shape `(N, 2)` with column 0 = seconds and strictly monotonically increasing timestamps. Returns raw resampled velocity (no smoothing); apply Gaussian filter after if needed. Raises `ValueError` for short behavior recordings.
+  - `define_mobility(velocity, ...)` → `pd.Series` of booleans — rolling-window mobility classification. Reads imaging fps from `imaging_metadata.json` at the TSeries root (two levels above `behavior_dir`).
 
 - **`EegData`** (`src.io.eeg_io`) — reads scored EEG CSVs (`sleep.csv`). Converts integer scores to brain-state columns: awake=0, NREM=1, REM=2, other=3.
 

@@ -85,9 +85,28 @@ def load_session(
     behavior_dir = sima_folder / "behavior"
     if behavior_dir.exists():
         from src.io.behavior_io import BehaviorData
+        from src.io.imaging_io import Imaging
         try:
             bd = BehaviorData(behavior_dir)
-            session.velocity = bd.load_processed_velocity(velocity_file)
+            velocity_ts = bd.load_processed_velocity(velocity_file)
+
+            tseries_dir = sima_folder.parent
+            imaging = Imaging(tseries_dir)
+            imaging_metadata = imaging.get_imaging_metadata()
+
+            sequence_type = imaging_metadata.get("sequence_type")
+            if sequence_type == "single plane":
+                imaging_fps = float(imaging_metadata.get("fps", 0))
+                n_frames = int(imaging_metadata.get("number of images", 0))
+            elif sequence_type == "multi plane":
+                imaging_fps = imaging.multiplane_frame_rate()
+                n_frames = int(imaging_metadata.get("number of sequences", 0))
+            else:
+                raise ValueError(
+                    "Unknown imaging sequence type: %s" % sequence_type
+                )
+
+            session.velocity = bd.resample_to_imaging(velocity_ts, imaging_fps, n_frames)
             session.mobility = bd.define_mobility(session.velocity)
         except (FileNotFoundError, ValueError) as exc:
             logger.warning("Could not load behavior data: %s", exc)

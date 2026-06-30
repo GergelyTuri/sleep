@@ -1,4 +1,5 @@
 import json
+import logging
 from dataclasses import dataclass
 from os.path import join
 from pathlib import Path
@@ -8,6 +9,8 @@ import numpy as np
 import pandas as pd
 
 from . import imaging_io as ic
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -121,3 +124,79 @@ class BehaviorData:
         mobility = (rolling_max_vel > threshold).astype(bool)
 
         return mobility
+
+    def resample_to_imaging(
+        self,
+        velocity_ts: np.ndarray,
+        imaging_fps: float,
+        n_frames: int,
+    ) -> np.ndarray:
+        """Resample an event-driven velocity time series onto the imaging frame grid.
+
+        Replaces the lab3 ``format_behavior_data(sampling_interval=frame_period)``
+        call.  The input must carry per-event timestamps because BehaviorMate is
+        event-driven (no fixed sampling rate); endpoints alone are not sufficient
+        to reconstruct the time base.
+
+        Parameters
+        ----------
+        velocity_ts : np.ndarray, shape (N, 2)
+            Column 0: event timestamps in seconds from recording start.
+            Column 1: velocity value at each event.
+            Timestamps must be strictly monotonically increasing.
+        imaging_fps : float
+            Imaging frame rate in Hz, supplied by the caller.
+        n_frames : int
+            Number of imaging frames (output length).
+
+        Returns
+        -------
+        np.ndarray, shape (n_frames,)
+            Velocity resampled onto the imaging frame grid.  Unfiltered — apply
+            any smoothing (e.g. Gaussian) after calling this method.
+
+        Raises
+        ------
+        ValueError
+            If ``velocity_ts`` is not shape ``(N, 2)``, timestamps are not
+            strictly increasing, ``imaging_fps`` or ``n_frames`` are not
+            positive, or the behavior recording ends before the last imaging
+            frame (beyond a one-frame tolerance).
+        """
+        if velocity_ts.ndim != 2 or velocity_ts.shape[1] != 2:
+            raise ValueError(
+                "velocity_ts must have shape (N, 2); got %s" % (velocity_ts.shape,)
+            )
+        if imaging_fps <= 0:
+            raise ValueError(
+                "imaging_fps must be positive; got %s" % imaging_fps
+            )
+        if n_frames <= 0:
+            raise ValueError(
+                "n_frames must be positive; got %s" % n_frames
+            )
+
+        behavior_times = velocity_ts[:, 0]
+        velocity_values = velocity_ts[:, 1]
+
+        if np.any(np.diff(behavior_times) <= 0):
+            raise ValueError(
+                "velocity_ts timestamps are not strictly increasing"
+            )
+
+        target_times = np.arange(n_frames) / imaging_fps
+        tolerance = 1.0 / imaging_fps
+
+        if target_times[-1] > behavior_times[-1] + tolerance:
+            raise ValueError(
+                "Behavior ends %.2f s before last imaging frame "
+                "(behavior ends at %.2f s, last frame at %.2f s). "
+                "Padding for short behavior is not yet implemented."
+                % (
+                    target_times[-1] - behavior_times[-1],
+                    behavior_times[-1],
+                    target_times[-1],
+                )
+            )
+
+        return np.interp(target_times, behavior_times, velocity_values)
