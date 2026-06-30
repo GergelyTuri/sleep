@@ -69,7 +69,7 @@ scripts/
   add_time_avg.py                  # Adds time-averaged image to suite2p data
   behavior_scripts/
     export_mobility_immobility.py  # Exports mobility/immobility epochs → JSON
-    process_json_behavior_data.py  # Parses .tdml/.vr files → .json (default) or .pkl
+    process_tdml_behavior_data.py  # Parses .tdml/.vr files → .json (default) or .pkl
   eeg_scripts/
     eeg_velocity_processing.py     # Merges scored EEG with velocity data → velo_eeg.csv
     process_matlab_files.py        # Extracts sleep state scores from .mat files → CSV
@@ -119,22 +119,22 @@ tests/
 
 All scripts configure logging via `logging.basicConfig()` inside their `if __name__ == "__main__":` guard (or at the top of `main()` for scripts imported by tests). Run any script with `--help` for full argument documentation.
 
-### process_json_behavior_data.py
+### process_tdml_behavior_data.py
 
-`scripts/behavior_scripts/process_json_behavior_data.py` converts `.tdml` or `.vr` BehaviorMate files into structured output. By default it writes a `.json` file in the same directory as the input file.
+`scripts/behavior_scripts/process_tdml_behavior_data.py` converts `.tdml` or `.vr` BehaviorMate files into structured output. By default it writes a `.json` file in the same directory as the input file.
 
 ```bash
 # single file
-python scripts/behavior_scripts/process_json_behavior_data.py -f path/to/file.tdml
+python scripts/behavior_scripts/process_tdml_behavior_data.py -f path/to/file.tdml
 
 # entire directory tree (skips files with an existing .json; use -o to overwrite)
-python scripts/behavior_scripts/process_json_behavior_data.py -d path/to/dir
+python scripts/behavior_scripts/process_tdml_behavior_data.py -d path/to/dir
 
 # write .pkl instead of .json
-python scripts/behavior_scripts/process_json_behavior_data.py -f file.tdml --file_type pkl
+python scripts/behavior_scripts/process_tdml_behavior_data.py -f file.tdml --file_type pkl
 
 # also load into the SQL database (requires lab3 and DB env vars)
-python scripts/behavior_scripts/process_json_behavior_data.py -f file.tdml --sql -g my_group
+python scripts/behavior_scripts/process_tdml_behavior_data.py -f file.tdml --sql -g my_group
 ```
 
 The `lab3` database dependency is imported lazily inside `loadSql` — the script runs without `lab3` installed as long as `--sql` is not passed.
@@ -145,7 +145,7 @@ Raw BehaviorMate recordings flow through three steps before analysis:
 
 ```
 raw .tdml  (event-driven, timestamped)
-  → scripts/behavior_scripts/process_json_behavior_data.py
+  → scripts/behavior_scripts/process_tdml_behavior_data.py
       writes <session>.json alongside the .tdml
       key output key: "treadmillPosition": [[time_s, norm_pos], ...]
 

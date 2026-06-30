@@ -61,18 +61,18 @@ pytest tests/test_unit.py -v
 
 ### Behavior data processing
 
-`scripts/behavior_scripts/process_json_behavior_data.py` converts BehaviorMate `.tdml` or `.vr` files into structured `.json` output (or `.pkl` if needed). The output file is written to the same directory as the input.
+`scripts/behavior_scripts/process_tdml_behavior_data.py` converts BehaviorMate `.tdml` or `.vr` files into structured `.json` output (or `.pkl` if needed). The output file is written to the same directory as the input.
 
 ```bash
 # single file
-python scripts/behavior_scripts/process_json_behavior_data.py -f path/to/file.tdml
+python scripts/behavior_scripts/process_tdml_behavior_data.py -f path/to/file.tdml
 
 # entire directory tree (skips files that already have a .json; use -o to overwrite)
-python scripts/behavior_scripts/process_json_behavior_data.py -d path/to/dir
+python scripts/behavior_scripts/process_tdml_behavior_data.py -d path/to/dir
 
 # write .pkl instead of .json
-python scripts/behavior_scripts/process_json_behavior_data.py -f file.tdml --file_type pkl
+python scripts/behavior_scripts/process_tdml_behavior_data.py -f file.tdml --file_type pkl
 
 # also load into the SQL database (requires lab3 and DB environment variables)
-python scripts/behavior_scripts/process_json_behavior_data.py -f file.tdml --sql -g my_group
+python scripts/behavior_scripts/process_tdml_behavior_data.py -f file.tdml --sql -g my_group
 ```

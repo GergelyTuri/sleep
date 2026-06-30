@@ -293,7 +293,7 @@ class TestProjectFilterSql:
 
 
 # ---------------------------------------------------------------------------
-# scripts/behavior_scripts/process_json_behavior_data.py
+# scripts/behavior_scripts/process_tdml_behavior_data.py
 # ---------------------------------------------------------------------------
 
 class TestProcessJsonBehaviorData:
@@ -305,9 +305,9 @@ class TestProcessJsonBehaviorData:
     def mod(self):
         """Load the script as a module without executing __main__."""
         spec = importlib.util.spec_from_file_location(
-            "process_json_behavior_data",
+            "process_tdml_behavior_data",
             Path(__file__).parent.parent
-            / "scripts/behavior_scripts/process_json_behavior_data.py",
+            / "scripts/behavior_scripts/process_tdml_behavior_data.py",
         )
         m = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(m)
@@ -408,7 +408,7 @@ class TestResampleToImaging:
     """Tests for BehaviorData.resample_to_imaging().
 
     All tests use synthetic or sample-file-derived data; no live data required.
-    The sample JSON is the output of process_json_behavior_data.py on the
+    The sample JSON is the output of process_tdml_behavior_data.py on the
     accompanying .tdml fixture.
     """
 
