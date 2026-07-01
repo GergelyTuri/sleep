@@ -373,7 +373,8 @@ class TestProcessTdmlBehaviorData:
     def test_main_json_has_expected_keys(self, mod, tdml):
         mod.main(["-f", str(tdml)])
         data = json.loads(tdml.with_suffix(".json").read_text())
-        for key in ("trackLength", "recordingDuration", "treadmillPosition"):
+        for key in ("trackLength", "recordingDuration", "treadmillPosition",
+                    "treadmillDy", "position_scale"):
             assert key in data, f"missing key: {key}"
 
     def test_main_does_not_write_pkl_by_default(self, mod, tdml):
@@ -421,20 +422,23 @@ class TestResampleToImaging:
 
     @pytest.fixture
     def sample_velocity_ts(self):
-        """Derive velocity_ts [[time_s, velocity], ...] from sample treadmillPosition.
-
-        Velocity at each event = Δnormalized_position / Δtime_s.
-        Timestamps are the start of each inter-event interval.
-        This mirrors what the reworked process_velocity notebook will write.
+        """Derive velocity_ts [[time_s, velocity_cms], ...] from the sample intermediate
+        JSON using treadmillDy and position_scale — mirrors what the reworked
+        process_velocity notebook writes to filtered_velocity.json (signed cm/s,
+        start-of-interval aligned).
         """
         with open(self._SAMPLE_JSON) as f:
-            tp = json.load(f)["treadmillPosition"]
-        tp = np.array(tp)
-        dt = np.diff(tp[:, 0])
-        dp = np.diff(tp[:, 1])
-        times = tp[:-1, 0]
-        velocity = dp / dt
-        return np.column_stack([times, velocity])
+            data = json.load(f)
+        dy_arr = np.array(data["treadmillDy"])       # [[time_s, dy], ...]
+        position_scale = data["position_scale"]       # -2.15
+        dt = np.diff(dy_arr[:, 0])
+        dy = dy_arr[1:, 1].astype(float)
+        distance_mm = dy / position_scale
+        velocity_cms = (distance_mm / 10.0) / dt
+        vts = np.column_stack([dy_arr[:-1, 0], velocity_cms])
+        # The sample contains genuine backward motion — fixture must have negative values.
+        assert np.any(vts[:, 1] < 0), "sample_velocity_ts: expected backward (negative) events"
+        return vts
 
     # --- shape and argument validation ---
 

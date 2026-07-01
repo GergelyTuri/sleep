@@ -24,7 +24,7 @@ JIA_T2 = 1800  # rolling-minimum baseline window (~60 s at 30 fps)
 # --------------- Epoch thresholds (calc_module.py, clustering.py) ---------------
 MIN_EPOCH_FRAMES = 100               # minimum consecutive frames to label a state epoch
 MIN_SLEEP_EPOCH_FRAMES = 600         # minimum frames for a valid sleep epoch
-IMMOBILITY_VELOCITY_THRESHOLD = 0.1  # velocity (cm/s) below which mouse is immobile
+IMMOBILITY_VELOCITY_THRESHOLD = 1.0  # speed (cm/s) at or above which mouse is mobile
 
 # --------------- Signal analysis (frequency_psd.py) ---------------
 MAX_AUTOCORR_LAGS = 500  # number of autocorrelation lags to retain

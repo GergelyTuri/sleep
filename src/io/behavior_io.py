@@ -10,6 +10,11 @@ import pandas as pd
 
 from . import imaging_io as ic
 
+try:
+    from src.config import IMMOBILITY_VELOCITY_THRESHOLD
+except ImportError:
+    from config import IMMOBILITY_VELOCITY_THRESHOLD
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,31 +60,37 @@ class BehaviorData:
 
     def define_mobility(
         self,
-        velocity: np.ndarray,        
-        threshold: float = 1.0,
+        velocity: np.ndarray,
+        threshold: float = IMMOBILITY_VELOCITY_THRESHOLD,
         min_duration: float = 1.0,
         min_periods: int = 1,
         center: bool = True,
     ) -> pd.Series:
         """
-        Define time periods of immobility based on a rolling window of velocity.
+        Define time periods of mobility based on a rolling window of speed.
 
-        A Mouse is considered immobile if velocity has not exceeded the threshold for the
-        previous min_duration seconds.
+        A frame is classified mobile if the rolling-maximum speed over ``min_duration``
+        seconds meets or exceeds ``threshold`` (consistent with
+        ``brain_state_filter``'s ``>= IMMOBILITY_VELOCITY_THRESHOLD`` boundary).
 
-        Default values for min_duration and threshold are taken from:
+        Default values for min_duration are taken from:
         Stefanini et al., 2018 (https://doi.org/10.1101/292953)
 
         Args:
-            velocity (np.ndarray): The filtered and processed velocity of the mouse.
-            threshold (float): The threshold value for defining immobility.
-            min_duration (float): The minimum duration (in seconds) to consider the mouse immobile.
-            min_periods (int): The minimum number of observations required to be considered immobile.
+            velocity (np.ndarray): Per-frame velocity in **cm/s** (signed; positive =
+                forward, negative = backward), as produced by
+                ``BehaviorData.resample_to_imaging()``.  ``abs(velocity)`` is applied
+                internally so backward motion is classified mobile, not immobile.
+            threshold (float): Speed threshold in **cm/s** at or above which the mouse
+                is considered mobile.  Defaults to
+                ``config.IMMOBILITY_VELOCITY_THRESHOLD`` (1.0 cm/s), which sits above
+                the encoder-jitter floor (~0.5 cm/s) and below real running (~10 cm/s).
+            min_duration (float): Minimum duration (seconds) of the rolling window.
+            min_periods (int): Minimum observations required in the rolling window.
             center (bool): Whether to center the rolling window.
 
         Returns:
-            pd.Series: A one-dimensional series of booleans, where False signifies immobile
-            times and True signifies mobile times.
+            pd.Series: Boolean series — True = mobile, False = immobile.
         """
         # Getting the framerate from the imaging metadata.
         # Assumes behavior_dir is <TSeries>/.sima/behavior/ (parents[1] = TSeries root).
@@ -108,20 +119,20 @@ class BehaviorData:
                 f"Check 'fps' in imaging_metadata.json at {tSeries_path}."
             )
 
-        # Calculating mobile/immobile periods
-        velocity_series = pd.Series(velocity).astype(float)
+        # Rectify to speed so backward motion (negative velocity) is classified mobile.
+        speed = np.abs(np.asarray(velocity, dtype=float))
+        speed_series = pd.Series(speed)
         window_size = int(framerate * min_duration)
-        
-        # Ensure window_size is at least 1 to avoid rolling errors
+
         if window_size < 1:
             raise ValueError(f"Calculated window size must be at least 1, but got {window_size}.")
 
-        rolling_max_vel = velocity_series.rolling(
+        rolling_max_speed = speed_series.rolling(
             window_size, min_periods=min_periods, center=center
         ).max()
 
-        # Define mobility/immobility periods
-        mobility = (rolling_max_vel > threshold).astype(bool)
+        # >= matches brain_state_filter's locomotion boundary (>= IMMOBILITY_VELOCITY_THRESHOLD)
+        mobility = (rolling_max_speed >= threshold).astype(bool)
 
         return mobility
 

@@ -63,7 +63,7 @@ src/
     google_drive.py
 notebooks/               # Analysis organized by topic
   behavior/
-    process_velocity.ipynb   # Derives velocity from treadmillPosition, saves [[time_s, vel], ...]
+    process_velocity.ipynb   # Derives signed velocity in cm/s from treadmillDy; saves [[time_s, velocity_cms], ...]
 scripts/
   add_project_subfolders.py        # Creates behavior/eeg/plots subfolders for a mouse's .sima dirs
   add_time_avg.py                  # Adds time-averaged image to suite2p data
@@ -91,9 +91,9 @@ tests/
 - **`Imaging`** (`src.io.imaging_io`) — reads `imaging_metadata.json`; handles both single-plane and multi-plane frame rate calculations.
 
 - **`BehaviorData`** (`src.io.behavior_io`) — loads and resamples velocity data; computes mobility/immobility epochs. Key methods:
-  - `load_processed_velocity(file_name)` → `np.ndarray` — reads `filtered_velocity.json`, which contains `[[time_s, velocity], ...]` pairs (shape `(N, 2)`) as written by `notebooks/behavior/process_velocity.ipynb`.
-  - `resample_to_imaging(velocity_ts, imaging_fps, n_frames)` → `np.ndarray shape (n_frames,)` — resamples an event-driven velocity time series onto the imaging frame grid. Replaces `lab3.BehaviorExperiment.format_behavior_data(sampling_interval=frame_period)`. `velocity_ts` must be shape `(N, 2)` with column 0 = seconds and strictly monotonically increasing timestamps. Returns raw resampled velocity (no smoothing); apply Gaussian filter after if needed. Raises `ValueError` for short behavior recordings.
-  - `define_mobility(velocity, ...)` → `pd.Series` of booleans — rolling-window mobility classification. Reads imaging fps from `imaging_metadata.json` at the TSeries root (two levels above `behavior_dir`).
+  - `load_processed_velocity(file_name)` → `np.ndarray` — reads `filtered_velocity.json`, which contains `[[time_s, velocity_cms], ...]` pairs (shape `(N, 2)`, **signed cm/s**, positive = forward) as written by `notebooks/behavior/process_velocity.ipynb`.
+  - `resample_to_imaging(velocity_ts, imaging_fps, n_frames)` → `np.ndarray shape (n_frames,)` — resamples an event-driven velocity time series onto the imaging frame grid. Replaces `lab3.BehaviorExperiment.format_behavior_data(sampling_interval=frame_period)`. `velocity_ts` must be shape `(N, 2)` with column 0 = seconds and strictly monotonically increasing timestamps. Returns raw resampled **signed velocity in cm/s** (no smoothing); apply Gaussian filter after if needed. Raises `ValueError` for short behavior recordings.
+  - `define_mobility(velocity, threshold=IMMOBILITY_VELOCITY_THRESHOLD, ...)` → `pd.Series` of booleans — rolling-window mobility classification. `velocity` must be in **cm/s** (signed); `abs()` is applied internally so backward motion is classified mobile. `threshold` defaults to `config.IMMOBILITY_VELOCITY_THRESHOLD` (1.0 cm/s), matching `brain_state_filter`'s `>=` boundary. Reads imaging fps from `imaging_metadata.json` at the TSeries root (two levels above `behavior_dir`).
 
 - **`EegData`** (`src.io.eeg_io`) — reads scored EEG CSVs (`sleep.csv`). Converts integer scores to brain-state columns: awake=0, NREM=1, REM=2, other=3.
 
@@ -147,12 +147,19 @@ Raw BehaviorMate recordings flow through three steps before analysis:
 raw .tdml  (event-driven, timestamped)
   → scripts/behavior_scripts/process_tdml_behavior_data.py
       writes <session>.json alongside the .tdml
-      key output key: "treadmillPosition": [[time_s, norm_pos], ...]
+      key output keys:
+        "treadmillPosition": [[time_s, norm_pos], ...]   (normalized, wraps at 1)
+        "treadmillDy":       [[time_s, dy_counts], ...]  (raw encoder increments, wrap-immune)
+        "position_scale":    -2.15                        (counts/mm; negative=forward is neg dy)
 
   → notebooks/behavior/process_velocity.ipynb
-      derives velocity = Δnorm_pos / Δtime_s from treadmillPosition
+      computes signed velocity from dy (NOT from differencing normalized position):
+        distance_mm  = dy[i] / position_scale
+        velocity_cms = (distance_mm / 10.0) / dt
+        t_stamp      = time[i-1]   (start-of-interval alignment)
       optional: drop outlier events by index range
-      writes <TSeries>.sima/behavior/filtered_velocity.json: [[time_s, velocity], ...]
+      writes <TSeries>.sima/behavior/filtered_velocity.json:
+        [[time_s, velocity_cms], ...]  — signed cm/s, positive = forward
       Gaussian smoothing is shown for inspection only — NOT saved
 
   → BehaviorData.resample_to_imaging(velocity_ts, imaging_fps, n_frames)
@@ -161,6 +168,16 @@ raw .tdml  (event-driven, timestamped)
 ```
 
 The notebook does **not** Gaussian-filter before saving. Smoothing (`scipy.ndimage.gaussian_filter`) belongs in the analysis notebook, after resampling to the imaging grid where σ in samples has a consistent physical meaning.
+
+**Unit change (breaking):** `filtered_velocity.json` now stores signed cm/s (~200× larger than the previous normalised pos/s). Consumers reading it directly must extract column 1 (`arr[:, 1]`) and apply `abs()` when speed rather than signed velocity is needed.
+
+### Known-broken / deferred
+
+These consumers are broken by the format change and require fixes in a separate scope:
+
+- **`scripts/eeg_scripts/eeg_velocity_processing.py:70-71`** — `pd.DataFrame(velocity_json, columns=["velocity"])` crashes on 2-column `[[time_s, vel], ...]` data (`ValueError: 1 columns passed, 2 in data`). Fix: extract column 1 and rename column to `"velocity_cms"` before concat with EEG.
+- **`scripts/behavior_scripts/export_mobility_immobility.py:39-40`** — passes raw `(N, 2)` timestamped array to `define_mobility`, which expects a 1D per-frame velocity (after `resample_to_imaging`). Needs rewrite to use `load_session()` or an explicit resample step. **Flagged as the immediate next task.**
+- **`notebooks/behavior/behavior_mobility_immobility.ipynb` cell 4** — same class as above (old calling convention). Needs rewrite alongside `export_mobility_immobility.py`.
 
 ### Other scripts
 

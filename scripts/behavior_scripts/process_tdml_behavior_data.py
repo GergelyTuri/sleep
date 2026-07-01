@@ -226,6 +226,12 @@ def main(argv):
             behavior_address = str(settings['controllers']['behavior_controller']['ip']) + ':' + \
                 str(settings['controllers']['behavior_controller']['receive_port'])
 
+        if 'position_controller' in settings:
+            _pos_ctrl = settings['position_controller']
+        else:
+            _pos_ctrl = settings['controllers']['position_controller']
+        position_address = str(_pos_ctrl['ip']) + ':' + str(_pos_ctrl['receive_port'])
+
         stims = {}
         if settings.get('contexts') is not None:
             for context in settings['contexts']:
@@ -316,6 +322,8 @@ def main(argv):
                 if 'y' in data.keys():
                     _append(mdict, 'position_y', [data['time'],
                             float(data['y'])])
+                    _append(mdict, 'treadmillDy', [data['time'],
+                            int(data[position_address]['position']['dy'])])
                 elif behavior_address in data.keys():
                     message = data[behavior_address]
                     if message.get('context', None) is not None:
@@ -438,6 +446,13 @@ def main(argv):
                                                     data['time']])
                                             starts[stims[key]] = -1
 
+        if 'treadmillDy' in mdict:
+            assert len(mdict['treadmillDy']) == len(mdict['position_y']), (
+                "treadmillDy and position_y have different lengths (%d vs %d) — "
+                "dy collection is misaligned with position events"
+                % (len(mdict['treadmillDy']), len(mdict['position_y']))
+            )
+
         if starttime_offset != 0:
             for key in mdict.keys():
                 if key == 'position_y':
@@ -470,11 +485,18 @@ def main(argv):
                             [last_ts - starttime_offset,
                              position_array[-1, 1]]])
                     mdict[key] = position_array.tolist()
+                elif key == 'treadmillDy':
+                    dy_arr = np.array(mdict[key])
+                    if np.any(dy_arr[:, 0] > starttime_offset):
+                        dy_arr[:, 0] -= starttime_offset
+                        dy_arr = dy_arr[dy_arr[:, 0] >= 0]
+                    mdict[key] = dy_arr.tolist()
                 else:
                     mdict[key] = (np.array(mdict[key]) -
                                   starttime_offset).tolist()
 
         mdict['trackLength'] = float(settings['track_length'])
+        mdict['position_scale'] = float(settings['position_scale'])
         mdict['recordingDuration'] = settings.get(
             'trial_length', last_ts - starttime_offset)
         if settings.get("experimentType", "") == "salience":
