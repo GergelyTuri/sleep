@@ -1,0 +1,32 @@
+# Machine-local configuration — paths and deployment facts only.
+#
+# HOW TO USE
+# ----------
+# Copy this file to config_local.py in the same directory and fill in
+# the values for your machine.  config_local.py is gitignored and must
+# never be committed.
+#
+# ON UTSW BIOHPC
+# --------------
+# Code lives in $HOME (version-controlled).
+# Data lives on a project/scratch allocation — do NOT point SLEEP_DATA_ROOT
+# at your home directory; home quotas are too small for imaging data.
+# Example BioHPC path:  /project/tlab/invivo_DATA/sleep
+#
+# ENV-VAR OVERRIDE
+# ----------------
+# Set SLEEP_DATA_ROOT in the environment (e.g. in a SLURM job script) to
+# override the value below without editing this file:
+#   export SLEEP_DATA_ROOT=/project/tlab/invivo_DATA/sleep
+#
+from pathlib import Path
+
+# Root folder containing all mouse imaging data.
+# Replace with the actual path on your machine.
+SLEEP_DATA_ROOT = Path("/change/this/to/your/data/root")
+
+# Google Drive paths — only needed for Colab workflows.
+# Leave these unchanged unless you use the src/colab/ utilities.
+# TODO: Colab path configuration is a separate scope; see src/colab/.
+GDRIVE_DATA_PATH = "/gdrive/Shareddrives/Turi_lab/Data/Sleep/2p/Analysis/data"
+GDRIVE_ROOT = "/gdrive/Shareddrives/Turi_lab/Data/"

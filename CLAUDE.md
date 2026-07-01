@@ -16,6 +16,29 @@ pip install -e .
 
 The package is installed as `sleep` (editable via `pyproject.toml`). Pip-only extras are in `requirements.txt`; install both.
 
+### Machine-local config (required on every new machine)
+
+`src/config.py` holds scientific constants under version control. Machine-local
+paths live in `src/config_local.py`, which is **gitignored and never committed**.
+Copy the example and set your data root before running any analysis:
+
+```bash
+cp src/config_local.py.example src/config_local.py
+# edit src/config_local.py — set SLEEP_DATA_ROOT to your data directory
+```
+
+On **UTSW BioHPC**: code lives in `$HOME`; data lives on a project/scratch
+allocation. Point `SLEEP_DATA_ROOT` there, not at `$HOME`.
+
+Alternatively, set the environment variable inline (e.g. in a SLURM job script):
+
+```bash
+export SLEEP_DATA_ROOT=/project/tlab/invivo_DATA/sleep
+```
+
+The env var always wins over `config_local.py`.  If neither is set,
+`MouseData()` raises a clear `RuntimeError` on construction.
+
 ## Running Notebooks
 
 ```bash
@@ -32,7 +55,9 @@ pytest tests/test_unit.py -v
 
 ```
 src/
-  config.py              # Centralized analysis parameters (all numeric defaults)
+  config.py              # Scientific constants (versioned). Re-exports machine-local paths from config_local.py.
+  config_local.py        # Machine-local paths — GITIGNORED, never committed. Copy from config_local.py.example.
+  config_local.py.example  # Committed template for config_local.py.
   logging_setup.py       # Empty stub — handlers configured per-script via logging.basicConfig()
   io/                    # Data loading — one file per data source
     suite2p_io.py        # Suite2p class (loads F.npy, Fneu.npy, spks.npy, iscell.npy)
@@ -80,7 +105,7 @@ tests/
 
 ### Key classes and their import paths
 
-- **`MouseData`** (`src.io.mouse_io`) — entry point for a mouse's data. Takes `mouse_id` and `root_folder` (env var `SLEEP_DATA_ROOT`, default `/data2/gergely/invivo_DATA/sleep`). Walks the filesystem to find TSeries, Suite2p, `.sima`, EEG, and behavior subdirectories.
+- **`MouseData`** (`src.io.mouse_io`) — entry point for a mouse's data. Takes `mouse_id` and optional `root_folder`. If `root_folder` is omitted it is resolved via `config.get_data_root()` (reads `SLEEP_DATA_ROOT` from `config_local.py` or the `SLEEP_DATA_ROOT` env var); raises `RuntimeError` immediately on construction if neither is set or the path does not exist. Walks the filesystem to find TSeries, Suite2p, `.sima`, EEG, and behavior subdirectories.
 
 - **`SessionData` / `load_session()`** (`src.io.session_io`) — convenience loader: given a `.sima` folder and an optional Suite2p folder, returns a `SessionData` with `dfof`, `eeg`, `mobility`, and `velocity` already populated. `velocity` is resampled to the imaging frame grid via `BehaviorData.resample_to_imaging()`; loading falls back to a warning if `imaging_metadata.json` is missing or the velocity file is in the old flat format.
 

@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import List, Union
 
 try:
-    from src.config import SLEEP_DATA_ROOT as _DEFAULT_ROOT
+    from src.config import SLEEP_DATA_ROOT as _DEFAULT_ROOT, get_data_root
 except ImportError:
-    from config import SLEEP_DATA_ROOT as _DEFAULT_ROOT
+    from config import SLEEP_DATA_ROOT as _DEFAULT_ROOT, get_data_root
 
 
 @dataclass
@@ -35,24 +35,33 @@ class MouseData:
     def __post_init__(self):
         """
         Initializes the mouse data object.
-        
+
         Raises
         ------
         ValueError
-            If `mouse_id` or `root_folder` is not provided.
+            If ``mouse_id`` is not provided.
+        RuntimeError
+            If ``root_folder`` is None and SLEEP_DATA_ROOT is not configured or
+            does not exist on disk (delegated to ``get_data_root()``).
+            If an explicit ``root_folder`` is given but does not exist on disk.
         """
         if not self.mouse_id:
             raise ValueError("Mouse ID must be a non-empty string")
-        if not self.root_folder:
-            raise ValueError("root_folder must be specified")
 
-        # Ensure mouse_id and root_folder are always Path objects
         if isinstance(self.mouse_id, str):
             self.mouse_id = Path(self.mouse_id)
-        if isinstance(self.root_folder, str):
-            self.root_folder = Path(self.root_folder)
 
-        # Create the path to the mouse folder
+        if self.root_folder is None:
+            # No explicit root — resolve and validate from config (fail-loud).
+            self.root_folder = get_data_root()
+        else:
+            # Explicit root — validate the path as passed, do not override.
+            self.root_folder = Path(self.root_folder)
+            if not self.root_folder.exists():
+                raise RuntimeError(
+                    f"root_folder does not exist: {self.root_folder}"
+                )
+
         self.mouse_folders = self.root_folder / self.mouse_id
 
     def _find_folders(self, condition: callable) -> List[Path]:

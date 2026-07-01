@@ -1,4 +1,5 @@
 .env
+src/config_local.py
 sleep.code-workspace
 settings.json
 .idea
